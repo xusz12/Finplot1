@@ -9,6 +9,12 @@ npm install
 npm run dev
 ```
 
+## 设计系统
+
+- 规范与扩展规则：[`docs/design-system.md`](docs/design-system.md)
+- 视觉样张：本地运行后访问 `/design-system.html`
+- 公共令牌和组件：`src/design-system/`、`src/components/ui.jsx`
+
 ## 技术说明
 
 - React + Vite；本地可控的 shadcn 风格基础组件、Radix UI

@@ -1,0 +1,60 @@
+/* Finplot design tokens. Existing short names are retained for component compatibility. */
+:root {
+  --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-cjk: 'PingFang SC', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --bg: #f7f8f7;
+  --sidebar: #f7f8f7;
+  --card: #fff;
+  --text: #252d2b;
+  --soft-text: #6e7975;
+  --muted: #9aa29f;
+  --border: #e8ece9;
+  --hover: #f4f6f4;
+  --accent: #678be2;
+  --interactive-text: #4868aa;
+  --income: #7095ea;
+  --expense: #bcc9db;
+  --bar-soft: #cddbf7;
+  --chart-grid: #edf0ee;
+  --hero-bg: #f0f5ff;
+  --hero-border: #e5edfc;
+  --nav-active: #fff;
+  --positive: #599875;
+  --positive-subtle: #6d9b7e;
+  --negative: #c38a73;
+  --positive-text: #427250;
+  --negative-text: #a85d41;
+  --icon-expense: #b58a70;
+  --icon-expense-bg: #f8f0e9;
+  --icon-rate: #679982;
+  --icon-rate-bg: #edf6f0;
+  --focus-ring: color-mix(in srgb, var(--income) 55%, transparent);
+
+  --chart-1: #7398ec;
+  --chart-2: #a7bcf0;
+  --chart-3: #c6d3f2;
+  --chart-4: #91aadf;
+  --chart-5: #dbe4f5;
+  --chart-6: #e9edf5;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --radius-control: 8px;
+  --radius: 14px;
+  --shadow: 0 4px 22px rgba(35, 52, 44, .025);
+  --duration-fast: 180ms;
+  --duration-page: 200ms;
+  --ease-out: ease-out;
+
+  font-family: var(--font-ui);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}

@@ -16,21 +16,21 @@ export function totals(year, mode, month) {
 export const money = (n, decimals = 0) => `¥${Number(n).toLocaleString('zh-CN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`
 export const categoryDefs = {
   expense: [
-    { name: '生活购物', share: 0.26, color: '#7196ed' }, { name: '居住', share: 0.23, color: '#a8bdf4' },
-    { name: '餐饮美食', share: 0.19, color: '#c7d4f6' }, { name: '交通出行', share: 0.13, color: '#95acda' },
-    { name: '休闲娱乐', share: 0.11, color: '#dce4f7' }, { name: '其他支出', share: 0.08, color: '#e9edf6' },
+    { name: '生活购物', share: 0.26 }, { name: '居住', share: 0.23 },
+    { name: '餐饮美食', share: 0.19 }, { name: '交通出行', share: 0.13 },
+    { name: '休闲娱乐', share: 0.11 }, { name: '其他支出', share: 0.08 },
   ],
   income: [
-    { name: '工资薪酬', share: 0.76, color: '#7196ed' }, { name: '投资收益', share: 0.12, color: '#a8bdf4' },
-    { name: '兼职收入', share: 0.07, color: '#c7d4f6' }, { name: '其他收入', share: 0.05, color: '#dce4f7' },
+    { name: '工资薪酬', share: 0.76 }, { name: '投资收益', share: 0.12 },
+    { name: '兼职收入', share: 0.07 }, { name: '其他收入', share: 0.05 },
   ],
 }
-export function categories(type, amount, colors) {
+export function categories(type, amount) {
   let used = 0
   return categoryDefs[type].map((item, i, all) => {
     const value = i === all.length - 1 ? amount - used : Math.round(amount * item.share)
     used += value
-    return { ...item, value, color: colors?.[i] || item.color }
+    return { ...item, value }
   })
 }
 export const baseTransactions = [

@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { Activity, ArrowDownLeft, ArrowDownRight, ArrowRight, ArrowUpRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Coffee, Database, Download, Ellipsis, FileUp, Grip, Home, LayoutDashboard, LineChart as LineChartIcon, LockKeyhole, RefreshCw, Settings2, ShoppingBag, SlidersHorizontal, Sparkles, TrainFront, TrendingUp, Wallet, X } from 'lucide-react'
-import { Button, Card, Badge } from './components/ui'
+import { Activity, ArrowDownLeft, ArrowDownRight, ArrowRight, ArrowUpRight, CalendarDays, Check, ChevronLeft, ChevronRight, CircleHelp, Coffee, Database, Download, Ellipsis, FileUp, Grip, Home, LayoutDashboard, LineChart as LineChartIcon, LockKeyhole, RefreshCw, Settings2, ShoppingBag, SlidersHorizontal, Sparkles, TrainFront, TrendingUp, Wallet, X } from 'lucide-react'
+import { Button, Card, Badge, MetricCard, NativeSelect, SectionHeading, SegmentedControl } from './components/ui'
+import { withChartColors } from './design-system/chart'
 import { useApp } from './store'
 import { categories, investmentData, monthTransactions, money, totals, yearData } from './data'
 
@@ -18,7 +19,6 @@ const nav = [
   { id: 'investments', label: '投资记录', icon: TrendingUp },
 ]
 const pageLabels = { overview: '财务总览', analysis: '收支分析', calendar: '收支日历', investments: '投资记录', settings: '设置' }
-const chartPalette = ['#7398ec', '#a7bcf0', '#c6d3f2', '#91aadf', '#dbe4f5', '#e9edf5']
 const iconMap = { shopping: ShoppingBag, coffee: Coffee, income: ArrowDownLeft, travel: TrainFront, home: Home, spark: Sparkles }
 
 function useNarrowScreen() {
@@ -59,9 +59,9 @@ function Header() {
 function PeriodControls({ allowMode = true }) {
   const { year, setYear, month, setMonth, mode, setMode } = useApp()
   return <div className="period-controls">
-    {allowMode && <div className="segmented" aria-label="时间范围"><button className={mode === 'year' ? 'active' : ''} onClick={() => setMode('year')}>年度</button><button className={mode === 'month' ? 'active' : ''} onClick={() => setMode('month')}>月度</button></div>}
-    <label className="select-wrap"><span className="sr-only">选择年份</span><select value={year} onChange={e => setYear(e.target.value)}><option value={2025}>2025 年</option><option value={2024}>2024 年</option></select><ChevronDown size={14}/></label>
-    {(!allowMode || mode === 'month') && <label className="select-wrap"><span className="sr-only">选择月份</span><select value={month} onChange={e => setMonth(e.target.value)}>{Array.from({length:12}, (_,i) => <option value={i+1} key={i}>{i+1} 月</option>)}</select><ChevronDown size={14}/></label>}
+    {allowMode && <SegmentedControl label="时间范围" value={mode} onValueChange={setMode} options={[{ value: 'year', label: '年度' }, { value: 'month', label: '月度' }]}/>}
+    <NativeSelect label="选择年份" value={year} onChange={e => setYear(e.target.value)}><option value={2025}>2025 年</option><option value={2024}>2024 年</option></NativeSelect>
+    {(!allowMode || mode === 'month') && <NativeSelect label="选择月份" value={month} onChange={e => setMonth(e.target.value)}>{Array.from({length:12}, (_,i) => <option value={i+1} key={i}>{i+1} 月</option>)}</NativeSelect>}
   </div>
 }
 function exportData(year, mode, month) {
@@ -74,7 +74,6 @@ function PageIntro({ eyebrow, title, subtitle, controls = true, exportButton = f
   const { year, month, mode } = useApp()
   return <div className="page-intro"><div><div className="eyebrow"><span>{eyebrow}</span><i/> <span>YOUR MONEY, IN PERSPECTIVE</span></div><h1>{title}<span className="heading-period">.</span></h1><p>{subtitle}</p></div><div className="intro-actions">{controls && <PeriodControls/>}{exportButton && <Button variant="outline" onClick={() => exportData(year,mode,month)}><Download size={15}/> 导出报表</Button>}</div></div>
 }
-function SectionHeading({ title, meta, action }) { return <div className="section-heading"><div><span className="section-square"/><h2>{title}</h2>{meta && <span className="section-meta">{meta}</span>}</div>{action}</div> }
 function SortableMetric({ id, data, previous, period }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
   const values = {
@@ -87,11 +86,7 @@ function SortableMetric({ id, data, previous, period }) {
   let change = id === 'rate' ? data.rate - previous.rate : previous[id] ? (data[id] - previous[id]) / Math.abs(previous[id]) * 100 : 0
   const favorable = id === 'expense' ? change <= 0 : change >= 0
   const changeText = id === 'rate' ? `${change >= 0 ? '+' : ''}${change.toFixed(1)} 个百分点` : `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`
-  return <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 3 : undefined }} className={`metric-wrap ${isDragging ? 'dragging' : ''}`}><Card className={`metric-card metric-${item.tone}`}>
-    <div className="metric-top"><div className="metric-name"><span className="metric-icon"><Icon size={15}/></span>{item.label}</div><button className="drag-handle" {...attributes} {...listeners} aria-label={`拖动调整${item.label}卡片顺序`}><Grip size={15}/></button></div>
-    <div className="metric-value">{item.value}</div>
-    <div className="metric-bottom"><span className={`metric-change ${favorable ? 'positive' : 'negative'}`}>{changeText}</span><span>较{period}</span></div><div className="metric-note">{item.note}</div>
-  </Card></div>
+  return <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 3 : undefined }} className={`metric-wrap ${isDragging ? 'dragging' : ''}`}><MetricCard label={item.label} value={item.value} icon={Icon} tone={item.tone} change={changeText} comparison={period} favorable={favorable} status={id === 'balance' ? item.note : undefined} action={<button className="drag-handle" {...attributes} {...listeners} aria-label={`拖动调整${item.label}卡片顺序`}><Grip size={15}/></button>}/></div>
 }
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
@@ -103,10 +98,10 @@ function TrendCard({ data }) {
     <div className="chart-footnote"><span><Sparkles size={14}/> 每一笔收支，都让未来的轮廓更清晰。</span><span>金额单位：人民币</span></div>
   </Card>
 }
-function BreakdownCard({ data, palette }) {
+function BreakdownCard({ data }) {
   const [type, setType] = useState('expense')
-  const items = categories(type, data[type], palette)
-  return <Card className="chart-card breakdown-card"><div className="card-heading"><div><h3>收支构成</h3><p>看看钱从哪里来，去了哪里</p></div><div className="small-tabs"><button onClick={() => setType('expense')} className={type === 'expense' ? 'active' : ''}>支出</button><button onClick={() => setType('income')} className={type === 'income' ? 'active' : ''}>收入</button></div></div>
+  const items = withChartColors(categories(type, data[type]))
+  return <Card className="chart-card breakdown-card"><div className="card-heading"><div><h3>收支构成</h3><p>看看钱从哪里来，去了哪里</p></div><SegmentedControl compact label="收支构成" value={type} onValueChange={setType} options={[{ value: 'expense', label: '支出' }, { value: 'income', label: '收入' }]}/></div>
     <div className="donut-layout"><div className="donut-wrap"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={items} dataKey="value" nameKey="name" innerRadius="70%" outerRadius="94%" paddingAngle={3} stroke="none" cornerRadius={3}>{items.map(item => <Cell key={item.name} fill={item.color}/>)}</Pie><Tooltip formatter={v => money(v)} contentStyle={{border:'1px solid var(--border)',borderRadius:10,fontSize:12}}/></PieChart></ResponsiveContainer><div className="donut-center"><span>总{type === 'expense' ? '支出' : '收入'}</span><strong>{money(data[type])}</strong></div></div><div className="donut-legend">{items.map(item => <div key={item.name}><span><i style={{background:item.color}}/>{item.name}</span><strong>{Math.round(item.share*100)}%</strong></div>)}</div></div>
     <div className="breakdown-footer"><span>占比最高</span><strong>{items[0].name}</strong><span>{money(items[0].value)}</span></div>
   </Card>
@@ -130,19 +125,19 @@ function Overview() {
     <SectionHeading title="你的财务概览" meta={mode === 'year' ? `${year} 年度` : `${year} 年 ${month} 月`} action={<span className="section-hint"><Grip size={14}/> 拖动卡片调整顺序</span>}/>
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}><SortableContext items={metricOrder} strategy={rectSortingStrategy}><div className="metrics-grid">{metricOrder.map(id => <SortableMetric key={id} id={id} data={data} previous={previous} period="去年同期"/>)}</div></SortableContext></DndContext>
     <div className="dashboard-heading"><SectionHeading title="看见变化" meta="THE BIG PICTURE" action={<span className="section-hint resize-hint">拖动中间分隔线调整宽度</span>}/></div>
-    {narrow ? <div className="mobile-charts"><TrendCard data={series}/><BreakdownCard data={data} palette={chartPalette}/></div> : <div className="desktop-charts"><PanelGroup direction="horizontal" autoSaveId="finplot-panels"><Panel defaultSize={65} minSize={48}><TrendCard data={series}/></Panel><PanelResizeHandle className="resize-handle"><span/></PanelResizeHandle><Panel defaultSize={35} minSize={30}><BreakdownCard data={data} palette={chartPalette}/></Panel></PanelGroup></div>}
+    {narrow ? <div className="mobile-charts"><TrendCard data={series}/><BreakdownCard data={data}/></div> : <div className="desktop-charts"><PanelGroup direction="horizontal" autoSaveId="finplot-panels"><Panel defaultSize={65} minSize={48}><TrendCard data={series}/></Panel><PanelResizeHandle className="resize-handle"><span/></PanelResizeHandle><Panel defaultSize={35} minSize={30}><BreakdownCard data={data}/></Panel></PanelGroup></div>}
     <div className="lower-grid"><BalanceCard data={series}/><RecentCard year={year} month={month} onView={() => setPage('calendar')}/></div>
     <div className="page-end"><span>FINPLOT / A CLEARER PICTURE OF YOUR MONEY</span><span>用心生活，也用心记录。 ✳</span></div>
   </>
 }
-function CategoryBlock({ type, amount, palette }) {
-  const items = categories(type,amount,palette)
+function CategoryBlock({ type, amount }) {
+  const items = withChartColors(categories(type,amount))
   const isIncome = type === 'income'
   return <Card className="category-card"><div className="category-head"><div><div className={`category-icon ${type}`}>{isIncome ? <ArrowDownLeft size={18}/> : <ArrowUpRight size={18}/>}</div><div><span>{isIncome ? 'MONEY IN' : 'MONEY OUT'}</span><h3>{isIncome ? '收入构成' : '支出构成'}</h3></div></div><strong>{money(amount,2)}</strong></div><div className="category-visual"><div className="analysis-donut"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={items} dataKey="value" innerRadius="70%" outerRadius="94%" paddingAngle={3} stroke="none" cornerRadius={3}>{items.map(i => <Cell key={i.name} fill={i.color}/>)}</Pie><Tooltip formatter={v => money(v)}/></PieChart></ResponsiveContainer><div className="donut-center"><span>{isIncome ? '收入分类' : '支出分类'}</span><strong>{items.length} 类</strong></div></div><div className="category-insight"><span>最大{isIncome ? '收入来源' : '支出项目'}</span><strong>{items[0].name}</strong><p>占总{isIncome ? '收入' : '支出'}的 {Math.round(items[0].share*100)}%</p></div></div><div className="category-table-head"><span>分类</span><span>金额 / 占比</span></div>{items.map(item => <div className="category-row" key={item.name}><div><i style={{background:item.color}}/><span>{item.name}</span></div><div><strong>{money(item.value)}</strong><span>{Math.round(item.share*100)}%</span></div><div className="category-progress"><span style={{width:`${item.share*100}%`,background:item.color}}/></div></div>)}</Card>
 }
 function Analysis() {
   const { year,mode,month } = useApp(); const data = totals(year,mode,month)
-  return <><PageIntro eyebrow="02 / ANALYSIS" title="收支分析" subtitle="把数字拆开来看，生活的偏好也渐渐清晰。" exportButton/><SectionHeading title="每一笔的去向" meta={mode === 'year' ? `${year} 年度` : `${year} 年 ${month} 月`}/><div className="analysis-grid"><CategoryBlock type="income" amount={data.income} palette={chartPalette}/><CategoryBlock type="expense" amount={data.expense} palette={chartPalette}/></div><div className="insight-banner"><span className="insight-spark"><Sparkles size={19}/></span><div><strong>一点值得留意的事</strong><p>本期你留下了收入的 {data.rate.toFixed(1)}%。了解自己的节奏，比单纯减少支出更重要。</p></div><span className="insight-en">A LITTLE<br/>PERSPECTIVE ↗</span></div><div className="page-end"><span>FINPLOT / YOUR MONEY, WITH MEANING</span><span>找到属于自己的平衡。</span></div></>
+  return <><PageIntro eyebrow="02 / ANALYSIS" title="收支分析" subtitle="把数字拆开来看，生活的偏好也渐渐清晰。" exportButton/><SectionHeading title="每一笔的去向" meta={mode === 'year' ? `${year} 年度` : `${year} 年 ${month} 月`}/><div className="analysis-grid"><CategoryBlock type="income" amount={data.income}/><CategoryBlock type="expense" amount={data.expense}/></div><div className="insight-banner"><span className="insight-spark"><Sparkles size={19}/></span><div><strong>一点值得留意的事</strong><p>本期你留下了收入的 {data.rate.toFixed(1)}%。了解自己的节奏，比单纯减少支出更重要。</p></div><span className="insight-en">A LITTLE<br/>PERSPECTIVE ↗</span></div><div className="page-end"><span>FINPLOT / YOUR MONEY, WITH MEANING</span><span>找到属于自己的平衡。</span></div></>
 }
 function CalendarPage() {
   const { year, month, setMonth, setYear } = useApp(); const [selected, setSelected] = useState(28)
@@ -168,6 +163,7 @@ function Settings() {
 }
 export default function App() {
   const { page } = useApp()
+  const reducedMotion = useReducedMotion()
   const content = { overview:<Overview/>, analysis:<Analysis/>, calendar:<CalendarPage/>, investments:<Investments/>, settings:<Settings/> }
-  return <div className="app"><div className="workspace"><Sidebar/><div className="app-main"><Header/><main className="main-scroll"><AnimatePresence mode="wait"><motion.div className="page-content" key={page} initial={{opacity:0,y:7}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-5}} transition={{duration:.2,ease:'easeOut'}}>{content[page]}</motion.div></AnimatePresence></main></div></div></div>
+  return <div className="app"><div className="workspace"><Sidebar/><div className="app-main"><Header/><main className="main-scroll"><AnimatePresence mode="wait"><motion.div className="page-content" key={page} initial={reducedMotion ? false : {opacity:0,y:7}} animate={{opacity:1,y:0}} exit={reducedMotion ? {opacity:1} : {opacity:0,y:-5}} transition={{duration:reducedMotion ? 0 : .2,ease:'easeOut'}}>{content[page]}</motion.div></AnimatePresence></main></div></div></div>
 }
