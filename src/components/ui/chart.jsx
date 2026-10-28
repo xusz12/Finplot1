@@ -69,6 +69,7 @@ const ChartTooltipContent = React.forwardRef(
     labelFormatter,
     labelClassName,
     formatter,
+    valueFormatter,
     color,
     nameKey,
     labelKey
@@ -137,7 +138,9 @@ const ChartTooltipContent = React.forwardRef(
         )}
         style={{
           "--color-bg": indicatorColor,
-          "--color-border": indicatorColor
+          "--color-border": indicatorColor,
+          backgroundColor: indicator === "dashed" ? "transparent" : indicatorColor,
+          borderColor: indicatorColor
         }}
       />}
                       <div
@@ -152,8 +155,8 @@ const ChartTooltipContent = React.forwardRef(
                             {itemConfig?.label || item.name}
                           </span>
                         </div>
-                        {item.value && <span className="font-mono font-medium tabular-nums text-foreground">
-                            {item.value.toLocaleString()}
+                        {item.value != null && <span className="finplot-chart-value font-medium tabular-nums text-foreground">
+                            {valueFormatter ? valueFormatter(item.value) : item.value.toLocaleString()}
                           </span>}
                       </div>
                     </>}

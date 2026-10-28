@@ -1,12 +1,38 @@
 import * as React from 'react'
+import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
 export { Button } from '@/components/ui/button'
 export { Card } from '@/components/ui/card'
 export { Badge } from '@/components/ui/badge'
-export { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+
+/** Labeled single-choice menu built from shadcn/ui DropdownMenu. */
+export function PeriodDropdown({ label, value, onValueChange, options }) {
+  const selected = options.find(option => String(option.value) === String(value))
+  return <DropdownMenu>
+    <DropdownMenuTrigger asChild><Button variant="outline" className="period-dropdown" aria-label={`${label}，当前 ${selected?.label ?? '未选择'}`}>
+      <span>{selected?.label ?? label}</span><ChevronDown size={14} aria-hidden="true"/>
+    </Button></DropdownMenuTrigger>
+    <DropdownMenuContent align="end" sideOffset={7} className="period-menu" onOpenAutoFocus={event => {
+      const selectedItem = event.currentTarget.querySelector('[role="menuitemradio"][data-state="checked"]')
+      if (selectedItem) {
+        event.preventDefault()
+        selectedItem.focus()
+        requestAnimationFrame(() => { if (selectedItem.isConnected) selectedItem.scrollIntoView({ block: 'nearest' }) })
+      }
+    }}>
+      <DropdownMenuLabel className="period-menu-label">{label}</DropdownMenuLabel>
+      <DropdownMenuSeparator className="period-menu-separator"/>
+      <DropdownMenuRadioGroup value={String(value)} onValueChange={onValueChange}>
+        {options.map(option => <DropdownMenuRadioItem key={option.value} value={String(option.value)} className="period-menu-item">{option.label}</DropdownMenuRadioItem>)}
+      </DropdownMenuRadioGroup>
+    </DropdownMenuContent>
+  </DropdownMenu>
+}
 
 /** A required single choice composed from shadcn/ui's ToggleGroup. */
 export function SegmentedControl({ label, value, onValueChange, options, compact = false, className }) {
