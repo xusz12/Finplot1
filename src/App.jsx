@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { version as appVersion } from '../package.json'
 import { AnimatePresence, motion } from 'motion/react'
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
@@ -50,7 +51,7 @@ function Sidebar() {
     <div className="sidebar-spacer" />
     <div className="side-note"><div className="side-note-top"><Sparkles size={15}/><span>A LITTLE REMINDER</span></div><p>每一个小小的决定，<br/>都在塑造你的未来。</p><div className="side-note-line"><span>为生活，留一份从容</span><ArrowUpRight size={14}/></div></div>
     <div className="profile"><Avatar className="avatar"><AvatarFallback className="avatar-fallback">林</AvatarFallback></Avatar><div><strong>林小满</strong><span>我的个人账本</span></div><Ellipsis size={18}/></div>
-    <div className="side-footer">PERSONAL FINANCE<span>v1.0</span></div>
+    <div className="side-footer">PERSONAL FINANCE<span>v{appVersion}</span></div>
   </aside>
 }
 function DataDialog() {
@@ -174,7 +175,7 @@ function Investments() {
 }
 function Settings() {
   const fileRef = useRef(null); const [file,setFile]=useState(''); const [checked,setChecked]=useState(false)
-  return <><PageIntro eyebrow="05 / SETTINGS" title="设置" subtitle="让你的账本，以自己喜欢的方式运转。" controls={false}/><SectionHeading title="账本与应用" meta="PREFERENCES"/><div className="settings-layout"><Card className="settings-card"><div className="settings-title"><span><Database size={19}/></span><div><h3>账本接入</h3><p>连接你的 SQLite 账本</p></div></div><div className="settings-body"><div className="settings-row"><div><strong>SQLite 数据库</strong><p>{file ? `已选择 ${file}，这是演示接入流程。` : '选择本地 .sqlite、.sqlite3 或 .db 文件。'}</p></div><input ref={fileRef} type="file" accept=".sqlite,.sqlite3,.db" hidden onChange={e=>setFile(e.target.files?.[0]?.name||'')}/><Button variant="outline" onClick={()=>fileRef.current?.click()}><FileUp size={15}/>{file?'重新选择':'选择文件'}</Button></div><div className="settings-info"><LockKeyhole size={15}/><span>原型仅展示文件选择流程，不读取或上传文件；页面仍使用示例数据。</span></div></div></Card><Card className="settings-card"><div className="settings-title"><span><RefreshCw size={19}/></span><div><h3>版本更新</h3><p>保持应用的良好状态</p></div></div><div className="settings-body"><div className="settings-row"><div><strong>Finplot 原型 <Badge>v1.0.0</Badge></strong><p>{checked ? '当前为原型演示版本。' : '看见生活的财务全景。'}</p></div><Button variant="outline" onClick={()=>setChecked(true)}>{checked?<Check size={15}/>:<RefreshCw size={15}/>} {checked?'已查看':'检查更新'}</Button></div></div></Card><div className="settings-aside"><Sparkles size={19}/><h3>财务，<br/>可以更从容。</h3><p>好的工具不只是记录数字，<br/>也帮你看见数字背后的生活。</p><span>MADE FOR THE WAY YOU LIVE ↗</span></div></div><div className="page-end"><span>FINPLOT / MADE WITH INTENTION</span><span>感谢你来到这里。</span></div></>
+  return <><PageIntro eyebrow="05 / SETTINGS" title="设置" subtitle="让你的账本，以自己喜欢的方式运转。" controls={false}/><SectionHeading title="账本与应用" meta="PREFERENCES"/><div className="settings-layout"><Card className="settings-card"><div className="settings-title"><span><Database size={19}/></span><div><h3>账本接入</h3><p>连接你的 SQLite 账本</p></div></div><div className="settings-body"><div className="settings-row"><div><strong>SQLite 数据库</strong><p>{file ? `已选择 ${file}，这是演示接入流程。` : '选择本地 .sqlite、.sqlite3 或 .db 文件。'}</p></div><input ref={fileRef} type="file" accept=".sqlite,.sqlite3,.db" hidden onChange={e=>setFile(e.target.files?.[0]?.name||'')}/><Button variant="outline" onClick={()=>fileRef.current?.click()}><FileUp size={15}/>{file?'重新选择':'选择文件'}</Button></div><div className="settings-info"><LockKeyhole size={15}/><span>原型仅展示文件选择流程，不读取或上传文件；页面仍使用示例数据。</span></div></div></Card><Card className="settings-card"><div className="settings-title"><span><RefreshCw size={19}/></span><div><h3>版本更新</h3><p>保持应用的良好状态</p></div></div><div className="settings-body"><div className="settings-row"><div><strong>Finplot 原型 <Badge>v{appVersion}</Badge></strong><p>{checked ? '当前为原型演示版本。' : '看见生活的财务全景。'}</p></div><Button variant="outline" onClick={()=>setChecked(true)}>{checked?<Check size={15}/>:<RefreshCw size={15}/>} {checked?'已查看':'检查更新'}</Button></div></div></Card><div className="settings-aside"><Sparkles size={19}/><h3>财务，<br/>可以更从容。</h3><p>好的工具不只是记录数字，<br/>也帮你看见数字背后的生活。</p><span>MADE FOR THE WAY YOU LIVE ↗</span></div></div><div className="page-end"><span>FINPLOT / MADE WITH INTENTION</span><span>感谢你来到这里。</span></div></>
 }
 export default function App() {
   const { page } = useApp()
