@@ -1,6 +1,6 @@
 # Finplot · 个人财务分析
 
-当前版本：**v0.1.2** · [版本记录](CHANGELOG.md)
+当前版本：**v0.1.3** · [版本记录](CHANGELOG.md)
 
 单一账本、无需用户登录的个人财务分析应用。支持 StaffX SQLite 账本、年度／月度总览、分类分析、收支日历和投资记录。设置位于左下角，版本号替换标志下方的 PERSONAL FINANCE，窄屏显示在侧栏底部。未接入账本时明确显示示例数据。
 
@@ -14,11 +14,13 @@ npm run build
 npm start
 ```
 
-默认本机地址为 `http://127.0.0.1:3210`。启动器管理服务子进程，异常退出后自动拉起；端口被其他程序占用时会报错，不结束其他程序。macOS 也可双击 `启动Finplot.command`。
+默认本机地址为 `http://127.0.0.1:3210`。启动器管理服务子进程，异常退出后自动拉起。重复 `npm start` 或双击 `启动Finplot.command` 会接管同一账本的旧实例：核验身份，等待正在进行的更新完成，停止旧工作进程，再启动并健康检查新实例；同时启动的请求会排队，最终只运行一个实例。端口被其他程序占用时会报错，不结束其他程序。
+
+兼容没有交接协议的 v0.1.2 启动器：通过账本专属 socket、进程用户、项目路径与启动时间核验后退出旧进程，不按端口或未经核验的 PID 结束进程。接管等待超时或身份校验失败时不会启动第二个服务。账本、历史快照和浏览器的布局设置保留。
 
 ### macOS 守护进程
 
-完成依赖安装与构建、停止前台 `npm start` 后执行：
+完成依赖安装与构建后执行（已有前台或后台实例会自动交接）：
 
 ```bash
 npm run daemon:install
@@ -28,7 +30,9 @@ npm run daemon:start
 npm run daemon:uninstall
 ```
 
-`daemon:install` 注册当前用户的 LaunchAgent 并立即启动，之后登录自动启动、关闭终端仍运行。安装位置为 `~/Library/LaunchAgents/com.finplot.service.plist`；日志位于数据目录的 `logs/service.log` 与 `logs/error.log`。卸载只移除守护进程，保留账本及更新历史。启动器路径与 Node 路径固定在安装配置中，移动项目或更换 Node 安装位置后重新执行安装命令。
+`daemon:install` 注册当前用户的 LaunchAgent 并立即启动，之后登录自动启动、关闭终端仍运行。重复安装或执行 `daemon:start` 会先安全交接旧实例，再重载任务；`daemon:start` 保留安装时的端口、监听地址和数据目录。任务异常退出会自动拉起，主动交接后的正常退出不会重新抢占端口。
+
+安装位置为 `~/Library/LaunchAgents/com.finplot.service.plist`；日志位于数据目录的 `logs/service.log` 与 `logs/error.log`。卸载只移除守护进程，保留账本及更新历史。启动器路径与 Node 路径固定在安装配置中，移动项目或更换 Node 安装位置后重新执行安装命令。`npm start` 是前台运行；如需交接后继续在后台运行，使用 `daemon:start` 或 `daemon:install`。
 
 其他系统可通过 `npm start` 前台运行，再交给系统进程管理器托管；内置守护进程安装脚本目前只支持 macOS。
 
@@ -99,7 +103,7 @@ npm run preview
 
 应用入口 `/`，可交互设计样张 `/design-system.html`。规范见 [`docs/design-system.md`](docs/design-system.md)。采用 React、Vite、shadcn/ui、Recharts、dnd-kit、Zustand、sql.js 与 Node.js 原生 HTTP 服务；无需额外 UI 或服务器框架。字体为 SF Pro／PingFang SC 系统字体栈。
 
-测试覆盖账本解析与金额对账、日历边界、版本一致性、共享账本持久化与冲突、请求保护、稳定标签识别、更新失败恢复和受管服务重启。测试只使用临时目录和虚构数据。可额外指定自己的快照进行只读对账与哈希校验：
+测试覆盖账本解析与金额对账、日历边界、版本一致性、共享账本持久化与冲突、请求保护、稳定标签识别、更新失败恢复、重复与并发启动接管及旧版兼容。macOS 有 GUI 会话时，还会用独立标签创建临时 LaunchAgent，验证后台替换与正常交接后不再拉起，并在结束时卸载。测试只使用临时目录和虚构数据。可额外指定自己的快照进行只读对账与哈希校验：
 
 ```bash
 FINPLOT_LEDGER_FILE='/absolute/path/to/ledger.sqlite3' \

@@ -1,37 +1,34 @@
 import { fork } from 'node:child_process'
-import { createServer, createConnection } from 'node:net'
-import { mkdir, rm, readFile } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { randomUUID, createHash } from 'node:crypto'
-import { tmpdir } from 'node:os'
+import { randomUUID } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import { atomicJson, readJson, networkConfig, ROOT, DATA_DIR, manifest } from './common.mjs'
 import { createUpdater, compareVersions } from './updates.mjs'
+import { acquireLaunchLock, retireExisting, createInstance } from './instance.mjs'
 
 await mkdir(DATA_DIR, { recursive: true, mode: 0o700 })
-// An OS-owned local socket prevents duplicate supervisors, including separate ports.
-const lockPath = join(tmpdir(), `finplot-${process.getuid?.() ?? 'user'}-${createHash('sha256').update(DATA_DIR).digest('hex').slice(0, 16)}.sock`)
-const lock = createServer(socket => socket.end())
-async function acquire() {
-  const alive = await new Promise(resolve => {
-    const client = createConnection(lockPath)
-    client.once('connect', () => { client.end(); resolve(true) })
-    client.once('error', () => resolve(false))
-  })
-  if (alive) throw new Error('此账本服务已经运行。请打开现有服务或先停止守护进程。')
-  await rm(lockPath, { force: true })
-  await new Promise((resolve, reject) => { lock.once('error', reject); lock.listen(lockPath, resolve) })
-}
-await acquire()
 const config = await networkConfig()
 const activePath = join(DATA_DIR, 'active.json')
-let active = await readJson(activePath, { root: ROOT, version: manifest.version })
-delete active.pending
-// A newer manually installed checkout takes precedence over an older managed release.
-if (compareVersions(manifest.version, active.version) > 0) active = { root: ROOT, version: manifest.version }
-let child, stopping = false, switching = false, restartTimer
+let active, child, stopping = false, retiring = false, switching = false, ready = false
+let restartTimer, checkTimer, releaseLaunch, control, handoffUntil = 0
 const processes = new Set()
+const startupAbort = new AbortController()
 let updater
+
+async function selectedRelease() {
+  const saved = await readJson(activePath)
+  // Prefer the current checkout at the same version; retain a newer managed release.
+  const selected = saved && compareVersions(saved.version, manifest.version) > 0 ? { ...saved } : { ...saved, root: ROOT, version: manifest.version }
+  delete selected.pending
+  return selected
+}
+function requestShutdown() {
+  handoffUntil = Date.now() + 5000
+  if (!ready || switching || ['installing', 'checking'].includes(updater?.snapshot().phase)) return { ok: false, status: 'waiting' }
+  setImmediate(() => void shutdown())
+  return { ok: true }
+}
 
 async function stopChild(target) {
   if (!target || target.exitCode !== null || target.signalCode !== null) return
@@ -49,7 +46,7 @@ async function launch(root, version) {
   processes.add(target)
   target.on('exit', () => {
     processes.delete(target)
-    if (target === child && !stopping && !switching) {
+    if (target === child && !retiring && !stopping && !switching) {
       console.error('服务退出，3 秒后重新启动。')
       restartTimer = setTimeout(() => restart().catch(fatal), 3000)
     }
@@ -57,6 +54,7 @@ async function launch(root, version) {
   target.on('message', async message => {
     if (!message.id || !updater) return
     try {
+      if (message.action !== 'state' && (retiring || Date.now() < handoffUntil)) throw Object.assign(new Error('实例正在交接，请稍后重试。'), { status: 409 })
       const result = message.action === 'state' ? updater.snapshot() : message.action === 'check' ? await updater.check()
         : message.action === 'install' ? await updater.install(message.version) : null
       if (target.connected) target.send({ id: message.id, result })
@@ -110,23 +108,47 @@ async function activate(root, version) {
     throw error
   } finally { switching = false }
 }
-updater = await createUpdater({ repository: manifest.repository.url, version: active.version, dataDir: DATA_DIR, activate })
 async function shutdown(code = 0) {
-  if (stopping) return
-  stopping = true
+  if (retiring) return
+  retiring = true
+  startupAbort.abort()
   clearTimeout(restartTimer); clearInterval(checkTimer)
+  await startup.catch(() => {})
+  await updater?.settled()
+  stopping = true
   await Promise.all([...processes].map(stopChild))
-  lock.close()
-  await rm(lockPath, { force: true })
+  await control?.close()
+  await releaseLaunch?.()
   process.exit(code)
 }
 function fatal(error) { console.error(error); void shutdown(1) }
-const checkTimer = setInterval(() => updater.check().catch(console.error), 6 * 60 * 60 * 1000)
-try {
+async function checkUpdates() { if (!retiring && Date.now() >= handoffUntil) await updater.check() }
+async function boot() {
+  releaseLaunch = await acquireLaunchLock(DATA_DIR, { signal: startupAbort.signal })
+  active = await selectedRelease()
+  // Fail obvious installation problems before stopping a healthy old instance.
+  await readFile(join(active.root, 'dist/index.html'))
+  await readFile(join(active.root, 'server/worker.mjs'))
+  const build = await readJson(join(active.root, 'dist/version.json'))
+  if (build?.version !== active.version) throw new Error('构建版本不一致，请先运行 npm run build。')
+  const saved = await readJson(activePath)
+  await retireExisting(DATA_DIR, { replace: process.argv.includes('--replace-existing'), roots: [ROOT, saved?.root].filter(Boolean), signal: startupAbort.signal })
+  startupAbort.signal.throwIfAborted()
+  // A previous update may have completed while this launch was waiting.
+  active = await selectedRelease()
+  control = await createInstance({ dataDir: DATA_DIR, root: ROOT, onShutdown: requestShutdown,
+    onStatus: () => ({ ok: true, ready: ready && !retiring && !switching && child?.exitCode === null && child?.signalCode === null,
+      pid: process.pid, workerPid: child?.pid, version: active.version }) })
+  updater = await createUpdater({ repository: manifest.repository.url, version: active.version, dataDir: DATA_DIR, activate })
   await restart()
   await atomicJson(activePath, active)
+  ready = true
   console.log(`Finplot v${active.version}\n${config.hosts.map(host => `http://${host}:${config.port}`).join('\n')}`)
-  void delay(2000).then(() => { if (!stopping) return updater.check() }).catch(console.error)
-} catch (error) { console.error(error); await shutdown(1) }
+  await releaseLaunch()
+  checkTimer = setInterval(() => checkUpdates().catch(console.error), 6 * 60 * 60 * 1000)
+  void delay(2000).then(checkUpdates).catch(console.error)
+}
+const startup = boot()
 process.on('SIGINT', () => shutdown())
 process.on('SIGTERM', () => shutdown())
+try { await startup } catch (error) { if (!retiring) { console.error(error); await shutdown(1) } }

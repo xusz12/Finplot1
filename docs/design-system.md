@@ -71,7 +71,8 @@
 | `Card` | 内容容器；通过组合业务类名设置内容，不把页面逻辑塞入基础组件。 |
 | `Badge` | 非交互的简短状态或版本信息。需要操作时用按钮，不要把标签伪装成按钮。 |
 | `SegmentedControl` | 受控的单选按钮组，提供 `label`、`value`、`onValueChange`、`options`；`compact` 用于卡片内部。基于 shadcn `ToggleGroup`，通过单选语义暴露选中状态；方向键移动焦点，空格键选择。 |
-| `PeriodDropdown` | 基于 shadcn `DropdownMenu`、`DropdownMenuRadioGroup` 和 `Button` 组合周期选择，提供 `label`、`value`、`onValueChange`、`options`；选中状态、方向键与 Escape 由 Radix 管理。 |
+| `PeriodDropdown` | 基于 shadcn `DropdownMenu`、`DropdownMenuRadioGroup` 和 `Button` 组合周期选择，提供 `label`、`value`、`onValueChange`、`options`、`disabled`、`className`；选中状态、方向键与 Escape 由 Radix 管理。 |
+| `PeriodSelector` | 组合年度／月度、年份、月份三个固定槽位。年度时月份显示不可操作的“全年”，切回月度恢复原月份；切换不改变宽度。360px 以下固定为两行，日历通过 `allowMode={false}` 只显示年月。 |
 | `Dialog` / `Avatar` / `Table` | 使用对应 shadcn 组件组合弹窗、头像与语义表格。 |
 | `ChartContainer` / `ChartTooltipContent` / `ChartLegendContent` | shadcn 图表容器、提示和图例（基于 Recharts）；业务组件仍需组合图形和坐标轴。提示组件本地增加 `valueFormatter` 以显示货币及零值。 |
 | `SectionHeading` | 页面区块标题，可传 `title`、`meta` 和 `action`；`meta` 仅用于提供必要上下文，不默认添加装饰性标签。 |
@@ -106,6 +107,8 @@ import { FileUp, Wallet } from 'lucide-react'
 
 - 应用采用单一账本，无用户登录、头像和账本切换；设置固定在侧栏底部，标志下方展示应用版本（窄屏放在侧栏底部）。页面不设宣传眉题、slogan、重复副标题或装饰性页脚。拖拽和面板调整保留手柄、可访问名称与键盘操作，说明放入悬停提示。
 - 桌面使用侧栏、页面标题、周期筛选和卡片网格；`1020px` 以下压缩侧栏，`760px` 以下主要内容单列，`480px` 以下进一步收紧间距。新增页面应检查这些断点及键盘访问。
+- 总览上下两排默认共用 55.6% / 44.4% 列宽（约 5:4）和 `--space-3` 间距，收支趋势与逐月结余左右边缘对齐。使用 `OverviewCharts` 组合与 `/design-system.html#chart-layout` 样张；上排拖动距对齐位置 10px 内吸附，吸附后拖出 18px 可脱离，仅通过手柄反馈，不显示引导线。方向键每次调整 2 个百分点，吸附后可继续调离；手动布局单独持久化，旧版默认 65% 不沿用。
+- `1020px` 以下总览使用固定网格；`760px` 以下按“收支趋势 → 逐月结余 → 收支构成 → 最近交易”单列显示，视觉顺序与文档顺序一致。
 - 工作区尺寸调整使用 shadcn `Resizable`（基于 `react-resizable-panels`）；拖动排序使用 `dnd-kit`，提供可见手柄和键盘操作；跨组件状态使用 Zustand。不要为同一职责引入第二套库。
 - 日历的年月与选中日期由 Zustand 一起更新；下拉筛选与前后月按钮使用同一周期操作。目标月份存在该日期时保留，否则调整到该月最后一天；跨年时一次更新年月，避免经过临时月份。返回较长月份仍保留调整后的日期。回归检查覆盖 31→30、31→2 月、闰年 2 月 29 日→平年，以及年末/年初。
 - 图标只用 Lucide，常用尺寸 15–18px、描边约 1.7–2px。图标应辅助文字；仅图标的操作必须有 `aria-label`。

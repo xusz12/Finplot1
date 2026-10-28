@@ -27,13 +27,17 @@ async function freePort() {
 }
 test('真实更新链路：进程守护、安装后持久化、启动失败恢复及构建失败不中断账本', { timeout: 90_000 }, async t => {
   const dir = await mkdtemp(join(tmpdir(), 'finplot-launcher-'))
-  const repo = join(dir, 'source'), data = join(dir, 'data')
+  const repo = join(dir, 'source'), installed = join(dir, 'installed'), data = join(dir, 'data'), releaseUpdate = join(dir, 'release-update')
   let launcher
-  const stop = async () => {
-    if (!launcher || launcher.exitCode !== null || launcher.signalCode !== null) return
-    await new Promise(resolve => { launcher.once('exit', resolve); launcher.kill('SIGTERM') })
+  const launchers = []
+  const stop = async (target = launcher) => {
+    if (!target || target.exitCode !== null || target.signalCode !== null) return
+    await new Promise(resolve => {
+      const timer = setTimeout(() => target.kill('SIGKILL'), 15_000)
+      target.once('exit', () => { clearTimeout(timer); resolve() }); target.kill('SIGTERM')
+    })
   }
-  t.after(async () => { await stop(); await rm(dir, { recursive: true, force: true }) })
+  t.after(async () => { await writeFile(releaseUpdate, ''); await Promise.all(launchers.map(stop)); await rm(dir, { recursive: true, force: true }) })
   await mkdir(repo)
   await cp(join(ROOT, 'server'), join(repo, 'server'), { recursive: true })
   await mkdir(join(repo, 'src/lib'), { recursive: true })
@@ -61,12 +65,17 @@ await writeFile('dist/index.html','<html><div id="root"></div></html>');`
   await run('git', ['config', 'user.email', 'test@example.invalid'], { cwd: repo })
   await publish('1.0.0')
   await run(process.execPath, ['build.mjs'], { cwd: repo })
+  // The installed launcher stays at 1.0.0 while the independent update source evolves.
+  await mkdir(installed)
+  for (const name of ['server', 'src', 'dist', 'package.json']) await cp(join(repo, name), join(installed, name), { recursive: true })
+  await symlink(join(ROOT, 'node_modules'), join(installed, 'node_modules'))
   await writeFile(join(repo, 'notes.txt'), '用户未提交的文件')
   const port = await freePort(), base = `http://127.0.0.1:${port}`
   const env = { ...process.env, FINPLOT_HOST: '127.0.0.1', FINPLOT_PORT: String(port), FINPLOT_DATA_DIR: data }
   let logs = ''
-  const start = () => {
-    launcher = spawn(process.execPath, ['server/start.mjs'], { cwd: repo, env, stdio: ['ignore', 'pipe', 'pipe'] })
+  const start = (replace = false) => {
+    launcher = spawn(process.execPath, ['server/start.mjs', ...(replace ? ['--replace-existing'] : [])], { cwd: installed, env, stdio: ['ignore', 'pipe', 'pipe'] })
+    launchers.push(launcher)
     launcher.stdout.on('data', bytes => { logs += bytes }); launcher.stderr.on('data', bytes => { logs += bytes })
   }
   t.after(() => { if (t.passed === false) console.error(logs) })
@@ -89,9 +98,20 @@ await writeFile('dist/index.html','<html><div id="root"></div></html>');`
   // A second launcher must not acquire or kill the service, even with another port.
   await assert.rejects(run(process.execPath, ['server/launcher.mjs'], { cwd: repo, env: { ...env, FINPLOT_PORT: String(await freePort()) } }), /已经运行/)
   assert.deepEqual(await get('/api/ledger'), original)
+  // Hold a real update build open while another launcher requests replacement.
+  await writeFile(join(repo, 'build.mjs'), `import {existsSync} from 'node:fs'; import {setTimeout as delay} from 'node:timers/promises';
+while(!existsSync(${JSON.stringify(releaseUpdate)})) await delay(50);\n${buildScript}`)
   await publish('1.0.1')
   await post('/api/updates/check', {})
+  const oldLauncher = launcher, beforeHandoff = await get('/api/health')
   await post('/api/updates/install', { version: '1.0.1' })
+  start(true)
+  await until(() => logs, value => value.includes('正在等待旧 Finplot 实例'))
+  assert.equal(oldLauncher.exitCode, null)
+  assert.deepEqual(await get('/api/health'), beforeHandoff)
+  await writeFile(releaseUpdate, '')
+  await until(() => oldLauncher.exitCode, value => value === 0)
+  await until(() => logs, value => value.includes('Finplot v1.0.1'))
   await until(() => get('/api/updates'), value => value.currentVersion === '1.0.1' && value.phase === 'idle')
   assert.equal((await get('/api/health')).version, '1.0.1')
   assert.deepEqual(await get('/api/ledger'), original)

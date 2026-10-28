@@ -4,10 +4,9 @@ import { AnimatePresence, motion } from 'motion/react'
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ResizablePanel as Panel, ResizablePanelGroup as PanelGroup, ResizableHandle as PanelResizeHandle } from '@/components/ui/resizable'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, XAxis, YAxis } from 'recharts'
 import { Activity, ArrowDownLeft, ArrowDownRight, ArrowRight, ArrowUpRight, CalendarDays, ChevronLeft, ChevronRight, Coffee, Grip, Home, LayoutDashboard, LineChart as LineChartIcon, Settings2, ShoppingBag, SlidersHorizontal, Sparkles, TrainFront, TrendingUp, Wallet } from 'lucide-react'
-import { Button, Card, Badge, MetricCard, PeriodDropdown, SectionHeading, SegmentedControl } from './components/ui'
+import { Button, Card, Badge, MetricCard, PeriodDropdown, PeriodSelector, SectionHeading, SegmentedControl } from './components/ui'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { financialChartConfig, withChartColors } from './design-system/chart'
@@ -17,6 +16,7 @@ import { money, percent, useFinance } from './finance'
 import { dailySummaries, NATURES, previousPeriodTotals, selectTransactions, summarize } from './lib/ledger'
 import { connectService, syncLedger } from './lib/service'
 import Settings from './components/Settings'
+import OverviewCharts from './components/OverviewCharts'
 
 const nav = [
   { id: 'overview', label: '财务总览', icon: LayoutDashboard },
@@ -25,17 +25,6 @@ const nav = [
   { id: 'investments', label: '投资记录', icon: TrendingUp },
 ]
 const iconMap = { shopping: ShoppingBag, coffee: Coffee, income: ArrowDownLeft, travel: TrainFront, home: Home, spark: Sparkles }
-
-function useNarrowScreen() {
-  const [narrow, setNarrow] = useState(() => window.matchMedia('(max-width: 1020px)').matches)
-  useEffect(() => {
-    const query = window.matchMedia('(max-width: 1020px)')
-    const onChange = (event) => setNarrow(event.matches)
-    query.addEventListener('change', onChange)
-    return () => query.removeEventListener('change', onChange)
-  }, [])
-  return narrow
-}
 
 function Logo() { return <div className="logo-lockup"><div className="logo-symbol"><span/><span/><span/><span/></div><div className="brand-name"><strong>finplot<span>.</span></strong><small>v{appVersion}</small></div></div> }
 function Sidebar() {
@@ -53,11 +42,8 @@ function Sidebar() {
 function PeriodControls({ allowMode = true }) {
   const { year, setYear, month, setMonth, mode, setMode, ledger } = useApp()
   const years = ledger?.years.length ? Array.from({ length: ledger.years[0] - ledger.years.at(-1) + 1 }, (_, i) => ledger.years[0] - i) : ledger ? [year] : [2025, 2024]
-  return <div className="period-controls">
-    {allowMode && <SegmentedControl label="时间范围" value={mode} onValueChange={setMode} options={[{ value: 'year', label: '年度' }, { value: 'month', label: '月度' }]}/>}
-    <PeriodDropdown label="选择年份" value={year} onValueChange={setYear} options={years.map(value => ({ value, label: `${value} 年` }))}/>
-    {(!allowMode || mode === 'month') && <PeriodDropdown label="选择月份" value={month} onValueChange={setMonth} options={Array.from({length:12}, (_,i) => ({value: i+1, label: `${i+1} 月`}))}/>}
-  </div>
+  return <PeriodSelector year={year} month={month} mode={mode} years={years} allowMode={allowMode}
+    onYearChange={setYear} onMonthChange={setMonth} onModeChange={setMode}/>
 }
 function ScopeControls() {
   const { ledger, nature, setNature } = useApp()
@@ -123,15 +109,14 @@ function Overview() {
   const { year, mode, month, metricOrder, setMetricOrder, setPage, ledger, nature } = useApp()
   const { totals, yearData } = useFinance()
   const data = totals(year,mode,month), previous = ledger ? previousPeriodTotals(ledger,year,mode,month,nature) : totals(year-1,mode,month), series = yearData(year)
-  const narrow = useNarrowScreen()
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }))
   const onDragEnd = ({ active, over }) => { if (over && active.id !== over.id) setMetricOrder(arrayMove(metricOrder, metricOrder.indexOf(active.id), metricOrder.indexOf(over.id))) }
   return <><PageIntro title="财务总览"/>
     <SectionHeading title="财务概览" meta={mode === 'year' ? `${year} 年度` : `${year} 年 ${month} 月`}/>
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}><SortableContext items={metricOrder} strategy={rectSortingStrategy}><div className="metrics-grid">{metricOrder.map(id => <SortableMetric key={id} id={id} data={data} previous={previous} period="去年同期"/>)}</div></SortableContext></DndContext>
     <div className="dashboard-heading"><SectionHeading title="收支变化"/></div>
-    {narrow ? <div className="mobile-charts"><TrendCard data={series}/><BreakdownCard data={data}/></div> : <div className="desktop-charts"><PanelGroup direction="horizontal" autoSaveId="finplot-panels"><Panel defaultSize={65} minSize={48}><TrendCard data={series}/></Panel><PanelResizeHandle className="resize-handle" aria-label="调整图表宽度" title="调整图表宽度"><span/></PanelResizeHandle><Panel defaultSize={35} minSize={30}><BreakdownCard data={data}/></Panel></PanelGroup></div>}
-    <div className="lower-grid"><BalanceCard data={series}/><RecentCard year={year} month={month} onView={() => setPage('calendar')}/></div>
+    <OverviewCharts autoSaveId="finplot-overview-aligned-v1" trend={<TrendCard data={series}/>} balance={<BalanceCard data={series}/>}
+      breakdown={<BreakdownCard data={data}/>} recent={<RecentCard year={year} month={month} onView={() => setPage('calendar')}/>}/>
 
   </>
 }

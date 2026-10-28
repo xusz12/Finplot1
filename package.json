@@ -1,14 +1,14 @@
 {
   "name": "atelier-finance-prototypes",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.1.3",
   "repository": { "type": "git", "url": "https://github.com/xusz12/Finplot1.git" },
   "engines": { "node": ">=22" },
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "dev": "vite --host 127.0.0.1",
-    "start": "node server/start.mjs",
+    "start": "node server/start.mjs --replace-existing",
     "daemon:install": "node scripts/service.mjs install",
     "daemon:start": "node scripts/service.mjs start",
     "daemon:stop": "node scripts/service.mjs stop",

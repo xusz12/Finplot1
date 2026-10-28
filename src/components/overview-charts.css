@@ -1,0 +1,20 @@
+.overview-charts { position:relative; --overview-gap:var(--space-3); }
+.overview-resizable-row .ui-card { height:100%; }
+.overview-resizable-row [data-panel-group] { align-items:stretch; }
+.overview-lower-row { display:grid; grid-template-columns:var(--overview-columns); gap:var(--overview-gap); margin-top:var(--overview-gap); }
+.overview-resize-handle { width:var(--overview-gap); background:transparent; display:flex; justify-content:center; align-items:center; flex:none; cursor:col-resize; }
+.overview-resize-handle>span { height:28px; width:3px; border-radius:var(--radius-control); background:var(--border); }
+.overview-resize-handle:hover>span,.overview-resize-handle[data-resize-handle-active]>span,.overview-resize-handle:focus-visible>span { background:var(--accent); }
+.overview-resize-handle:focus-visible>span { box-shadow:0 0 0 3px var(--focus-ring); }
+.overview-charts[data-aligned] .overview-resize-handle>span { background:var(--accent); }
+.overview-charts[data-dragging][data-aligned] .overview-resize-handle>span { width:5px; }
+.overview-compact-charts { display:grid; grid-template-columns:var(--overview-columns); grid-template-areas:'trend breakdown' 'balance recent'; gap:var(--overview-gap); }
+.overview-chart-slot { min-width:0; }
+.overview-chart-slot>.ui-card { height:100%; }
+.overview-trend { grid-area:trend; }
+.overview-balance { grid-area:balance; }
+.overview-breakdown { grid-area:breakdown; }
+.overview-recent { grid-area:recent; }
+@media (max-width:760px) {
+  .overview-compact-charts { grid-template-columns:minmax(0,1fr); grid-template-areas:'trend' 'balance' 'breakdown' 'recent'; }
+}

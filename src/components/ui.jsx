@@ -11,10 +11,10 @@ export { Card } from '@/components/ui/card'
 export { Badge } from '@/components/ui/badge'
 
 /** Labeled single-choice menu built from shadcn/ui DropdownMenu. */
-export function PeriodDropdown({ label, value, onValueChange, options }) {
+export function PeriodDropdown({ label, value, onValueChange, options, disabled = false, className }) {
   const selected = options.find(option => String(option.value) === String(value))
   return <DropdownMenu>
-    <DropdownMenuTrigger asChild><Button variant="outline" className="period-dropdown" aria-label={`${label}，当前 ${selected?.label ?? '未选择'}`}>
+    <DropdownMenuTrigger asChild><Button variant="outline" className={cn('period-dropdown', className)} disabled={disabled} aria-label={`${label}，当前 ${selected?.label ?? '未选择'}`}>
       <span>{selected?.label ?? label}</span><ChevronDown size={14} aria-hidden="true"/>
     </Button></DropdownMenuTrigger>
     <DropdownMenuContent align="end" sideOffset={7} className="period-menu" onOpenAutoFocus={event => {
@@ -32,6 +32,20 @@ export function PeriodDropdown({ label, value, onValueChange, options }) {
       </DropdownMenuRadioGroup>
     </DropdownMenuContent>
   </DropdownMenu>
+}
+
+/** Stable slots keep the mode switch in place when the month is not applicable. */
+export function PeriodSelector({ year, month, mode, years, onYearChange, onMonthChange, onModeChange, allowMode = true }) {
+  const annual = allowMode && mode === 'year'
+  return <div className={cn('period-selector', !allowMode && 'period-selector-month-only')}>
+    {allowMode && <SegmentedControl className="period-mode" label="时间范围" value={mode} onValueChange={onModeChange}
+      options={[{ value: 'year', label: '年度' }, { value: 'month', label: '月度' }]}/>}
+    <PeriodDropdown className="period-year" label="选择年份" value={year} onValueChange={onYearChange}
+      options={years.map(value => ({ value, label: `${value} 年` }))}/>
+    <PeriodDropdown className="period-month" label={annual ? '月份范围' : '选择月份'} disabled={annual}
+      value={annual ? 'all' : month} onValueChange={onMonthChange}
+      options={annual ? [{ value: 'all', label: '全年' }] : Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: `${i + 1} 月` }))}/>
+  </div>
 }
 
 /** A required single choice composed from shadcn/ui's ToggleGroup. */

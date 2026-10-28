@@ -21,6 +21,14 @@ button:disabled { cursor:default; }
 /* Shared presentation for the official DropdownMenu and Chart components. */
 .period-dropdown { gap:10px; min-width:96px; justify-content:space-between; }
 .period-dropdown svg { color:var(--soft-text); }
+.period-selector { display:grid; grid-template-columns:108px 96px 76px; align-items:center; gap:var(--space-2); flex:none; }
+.period-selector-month-only { grid-template-columns:96px 76px; }
+.period-selector .period-dropdown { width:100%; min-width:0; padding-inline:10px; gap:4px; }
+.period-selector .period-mode button { flex:1; padding-inline:0; }
+.period-selector .period-month:disabled { opacity:1; background:var(--hover); color:var(--soft-text); box-shadow:none; cursor:default; }
+.period-selector .period-month:disabled svg { visibility:hidden; }
+@media (max-width:480px) { .period-selector { grid-template-columns:96px 88px 68px; gap:var(--space-1); } .period-selector-month-only { grid-template-columns:88px 68px; } }
+@media (max-width:360px) { .period-selector { width:100%; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--space-2); } .period-selector .period-mode { grid-column:1 / -1; } }
 .period-dropdown[data-state="open"] { background:var(--hover); border-color:var(--income); }
 .period-menu { min-width:140px; max-height:min(460px, var(--radix-dropdown-menu-content-available-height)); padding:5px; border:1px solid var(--border); border-radius:10px; background:var(--card); color:var(--text); box-shadow:0 12px 28px #252d2b1a; font-family:var(--font-ui); }
 .period-menu-label { padding:7px 10px; font-size:11px; font-weight:600; color:var(--soft-text); }
