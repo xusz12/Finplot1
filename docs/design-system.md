@@ -6,9 +6,10 @@
 
 - 可交互的视觉样张：本地运行后打开 `/design-system.html`。它与应用使用同一份令牌、基础组件与图表配色。
 - 令牌唯一来源：`src/design-system/tokens.css`；图表在 JS 中通过 `src/design-system/chart.js` 引用这些 CSS 变量。
-- 本地可控的基础组件：`src/components/ui.jsx`，组件样式在 `src/design-system/components.css`；现有页面的业务组合和图表在 `src/App.jsx`。
+- shadcn/ui 本地源码：`src/components/ui/`，来自官方 registry；`src/components/ui.jsx` 负责导出和组合财务业务组件。Finplot 的组件样式在 `src/design-system/components.css`，页面组合和图表在 `src/App.jsx`。
+- `src/design-system/shadcn.css` 将 shadcn 的语义色映射到 Finplot 令牌，并接入 Tailwind 工具类；`components.json` 和 `jsconfig.json` 记录项目配置。
 - 独立入口需引入 `src/design-system/index.css`；主应用已通过 `src/styles.css` 引入。
-- 使用方法：先查找现有令牌、组件和页面模式；只有无法表达新需求时才扩展。新增公共组件或令牌后，同步更新本规范与视觉样张。
+- 使用方法：先查找现有令牌、组件和页面模式；只有无法表达新需求时才扩展。新增公共组件或令牌后，同步更新本规范与视觉样张。标准控件优先采用官方 shadcn/ui 源码并适配现有令牌；`components.json` 配置了源码、样式和别名；更新已有官方源码前，先检查本地 Finplot 适配，避免覆盖定制。
 
 ## 设计原则
 
@@ -50,15 +51,17 @@
 
 ## 组件与用法
 
-基础组件位于 `src/components/ui.jsx`，源码由项目控制，沿用 shadcn 的组合方式，复杂无障碍交互优先使用已有 Radix 原语。不要并行引入另一套 UI 组件库。
+标准基础组件使用 shadcn/ui 官方 registry 的本地源码，位于 `src/components/ui/`，基于 Radix 并由项目控制；视觉类名为 Finplot 令牌做了适配。当前 Button、Card、Badge、Dialog、Avatar、Table、Chart、Resizable、Toggle 和 ToggleGroup 使用官方 `new-york` registry，NativeSelect 使用官方 `new-york-v4` registry 并为 React 18 补充 ref 支持。各文件开头保留来源地址与本地适配说明，MIT 许可保存在 `src/components/ui/LICENSE.shadcn.md`。`src/components/ui.jsx` 仅导出这些组件并组合业务模式，不另造基础控件。不要并行引入另一套 UI 组件库。
 
 | 组件 | 用途与约束 |
 | --- | --- |
 | `Button` | `default` 为主要操作；`outline` 为次要操作；`ghost` / `subtle` 为低强调操作；`sm` 和 `icon` 为紧凑尺寸。普通按钮默认 `type="button"`，图标按钮须有 `aria-label`。`asChild` 可用于链接。 |
 | `Card` | 内容容器；通过组合业务类名设置内容，不把页面逻辑塞入基础组件。 |
 | `Badge` | 非交互的简短状态或版本信息。需要操作时用按钮，不要把标签伪装成按钮。 |
-| `SegmentedControl` | 受控的单选按钮组，提供 `label`、`value`、`onValueChange`、`options`；`compact` 用于卡片内部。通过 `aria-pressed` 暴露选中状态。 |
-| `NativeSelect` | 原生选择框，必须提供 `label`；优先保留系统键盘和辅助技术行为。 |
+| `SegmentedControl` | 受控的单选按钮组，提供 `label`、`value`、`onValueChange`、`options`；`compact` 用于卡片内部。基于 shadcn `ToggleGroup`，通过单选语义暴露选中状态；方向键移动焦点，空格键选择。 |
+| `NativeSelect` | 基于 shadcn `NativeSelect` 的原生选择框，必须提供 `label`；保留系统键盘和辅助技术行为。 |
+| `Dialog` / `Avatar` / `Table` | 使用对应 shadcn 组件组合弹窗、头像与语义表格。 |
+| `ChartContainer` / `ChartTooltip` | shadcn 图表容器与提示（基于 Recharts）；财务内容和数据语义仍由业务组件提供。 |
 | `SectionHeading` | 页面区块标题，可传 `title`、`meta` 和 `action`；保持标题层级清晰。 |
 | `MetricCard` | 格式化后的 `label`、`value`、`icon`、`change`、`comparison`、`status` 和 `tone`；拖动等可选操作通过 `action` 注入。业务数据和计算留在调用方。 |
 
@@ -80,16 +83,16 @@ import { Download, Wallet } from 'lucide-react'
 - 总览先呈现收入、支出、结余和状态，再展示趋势、构成与明细。任何比较都必须标出周期与基准。
 - 保持金额符号和语义：收入、支出、盈利、亏损和结余是不同概念；盈余、超支、平衡用文字明确表达。百分比变化与百分点变化不能混用。
 - 收入曲线使用 `--income`，支出曲线使用 `--expense`；分类使用 `withChartColors(items)`，不要另建重复调色板。顺序、标签和图例要稳定；给图表提供单位及可读取的数据或文字说明。
-- 图表使用 Recharts 的响应式容器；空数据、负值、长标签、小屏和颜色相近情况都需检查。图形是辅助，不替代准确数值。
+- 图表使用 shadcn `ChartContainer` / `ChartTooltip`，底层复用 Recharts；空数据、负值、长标签、小屏和颜色相近情况都需检查。图形是辅助，不替代准确数值。
 - 示例数据、模拟文件接入或模拟更新必须明确标记；不得将演示行为呈现为真实连接。
 
 ## 布局与交互
 
 - 桌面使用侧栏、页面标题、周期筛选和卡片网格；`1020px` 以下压缩侧栏，`760px` 以下主要内容单列，`480px` 以下进一步收紧间距。新增页面应检查这些断点及键盘访问。
-- 工作区尺寸调整使用 `react-resizable-panels`；拖动排序使用 `dnd-kit`，提供可见手柄和键盘操作；跨组件状态使用 Zustand。不要为同一职责引入第二套库。
+- 工作区尺寸调整使用 shadcn `Resizable`（基于 `react-resizable-panels`）；拖动排序使用 `dnd-kit`，提供可见手柄和键盘操作；跨组件状态使用 Zustand。不要为同一职责引入第二套库。
 - 图标只用 Lucide，常用尺寸 15–18px、描边约 1.7–2px。图标应辅助文字；仅图标的操作必须有 `aria-label`。
 - 动效使用 Motion，页面切换约 200ms、轻微位移与淡入淡出；避免弹跳和长时间循环。遵循 `prefers-reduced-motion`，减少动态效果时跳过位移和过渡。
-- 复杂弹窗使用 Radix Dialog，提供标题、描述、关闭与焦点管理。破坏性操作、空状态、错误和加载状态应明确说明结果和下一步。
+- 复杂弹窗使用 shadcn Dialog（基于 Radix），提供标题、描述、关闭与焦点管理。破坏性操作、空状态、错误和加载状态应明确说明结果和下一步。
 
 ## 文案与扩展检查
 

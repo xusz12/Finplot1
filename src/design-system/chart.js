@@ -7,3 +7,11 @@ export const chartSeries = Object.freeze([
 export function withChartColors(items) {
   return items.map((item, index) => ({ ...item, color: chartSeries[index % chartSeries.length] }))
 }
+
+// Shared shadcn chart configuration; values reference the Finplot tokens.
+export const financialChartConfig = Object.freeze({
+  income: { label: '收入', color: 'var(--income)' },
+  expense: { label: '支出', color: 'var(--expense)' },
+  balance: { label: '结余', color: 'var(--income)' },
+  value: { label: '盈亏', color: 'var(--income)' },
+})
