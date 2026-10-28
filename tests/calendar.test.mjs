@@ -68,3 +68,17 @@ test('图表页改动周期再回到日历，选中日期仍有效', () => {
   state().setPage('calendar')
   assert.deepEqual(selectedDate(), [2025, 2, 28])
 })
+
+test('导入账本定位到最新交易，切换账本不会沿用旧筛选与非法日期', () => {
+  state().setNature('投资')
+  state().setCalendarDay(31)
+  const ledger = { transactions: [{ year: 2026, month: 2, day: 28 }] }
+  state().setLedger(ledger)
+  assert.deepEqual(selectedDate(), [2026, 2, 28])
+  assert.equal(state().nature, 'all')
+  assert.equal(state().ledger, ledger)
+  assert.ok(![...storage.values()].some(value => value.includes('transactions')))
+  state().clearLedger()
+  assert.equal(state().ledger, null)
+  assert.deepEqual(selectedDate(), [2025, 10, 28])
+})
