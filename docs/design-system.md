@@ -1,6 +1,6 @@
 # Finplot 设计系统
 
-版本 1.2 · 面向个人财务分析及后续功能。此系统从当前 Apple 风格原型提炼而来：**安静、清晰、精确、有温度**。它是项目自己的设计语言，并非 Apple 官方设计系统。
+版本 1.3 · 面向个人财务分析及后续功能。此系统从当前 Apple 风格原型提炼而来：**安静、清晰、精确、有温度**。它是项目自己的设计语言，并非 Apple 官方设计系统。
 
 ## 入口与维护
 
@@ -79,9 +79,9 @@
 
 ```jsx
 import { Button, MetricCard, PeriodDropdown, SegmentedControl } from './components/ui'
-import { Download, Wallet } from 'lucide-react'
+import { FileUp, Wallet } from 'lucide-react'
 
-<Button variant="outline"><Download size={15} />导出报表</Button>
+<Button variant="outline"><FileUp size={15} />选择文件</Button>
 <SegmentedControl label="时间范围" value={mode} onValueChange={setMode}
   options={[{ value: 'year', label: '年度' }, { value: 'month', label: '月度' }]} />
 <PeriodDropdown label="选择年份" value={year} onValueChange={setYear}
@@ -104,6 +104,7 @@ import { Download, Wallet } from 'lucide-react'
 
 ## 布局与交互
 
+- 应用采用单一账本，无用户登录、头像和账本切换；设置固定在侧栏底部，标志下方展示应用版本（窄屏放在侧栏底部）。页面不设宣传眉题、slogan、重复副标题或装饰性页脚。拖拽和面板调整保留手柄、可访问名称与键盘操作，说明放入悬停提示。
 - 桌面使用侧栏、页面标题、周期筛选和卡片网格；`1020px` 以下压缩侧栏，`760px` 以下主要内容单列，`480px` 以下进一步收紧间距。新增页面应检查这些断点及键盘访问。
 - 工作区尺寸调整使用 shadcn `Resizable`（基于 `react-resizable-panels`）；拖动排序使用 `dnd-kit`，提供可见手柄和键盘操作；跨组件状态使用 Zustand。不要为同一职责引入第二套库。
 - 日历的年月与选中日期由 Zustand 一起更新；下拉筛选与前后月按钮使用同一周期操作。目标月份存在该日期时保留，否则调整到该月最后一天；跨年时一次更新年月，避免经过临时月份。返回较长月份仍保留调整后的日期。回归检查覆盖 31→30、31→2 月、闰年 2 月 29 日→平年，以及年末/年初。
@@ -125,7 +126,7 @@ import { Download, Wallet } from 'lucide-react'
 
 ## 文案与扩展检查
 
-使用简短、具体、温和的中文；不要因用户支出或盈亏作价值判断。按钮写动作（如“导出报表”），状态写事实（如“暂无交易”），演示与真实数据必须可区分。
+使用简短、具体、温和的中文；不要因用户支出或盈亏作价值判断。按钮写动作（如“选择文件”），状态写事实（如“暂无交易”），演示与真实数据必须可区分。
 
 交付新功能前确认：
 

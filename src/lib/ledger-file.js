@@ -16,7 +16,7 @@ export async function importLedgerFile(file) {
   return { ledger, bytes }
 }
 
-// Keep the selected snapshot in this browser only, never in localStorage or a server.
+// Legacy browser storage remains readable for static previews and explicit migration.
 async function cacheRequest(mode, action) {
   const db = await new Promise((resolve, reject) => {
     const request = indexedDB.open('finplot-ledger', 1)
@@ -37,7 +37,8 @@ async function cacheRequest(mode, action) {
 
 export const saveLedgerCache = (bytes, filename) => cacheRequest('readwrite', store => store.put({ bytes, filename }, 'current'))
 export const clearLedgerCache = () => cacheRequest('readwrite', store => store.delete('current'))
+export const getLedgerCache = () => cacheRequest('readonly', store => store.get('current'))
 export async function restoreLedgerCache() {
-  const cached = await cacheRequest('readonly', store => store.get('current'))
+  const cached = await getLedgerCache()
   return cached ? readLedger(await sqlRuntime(), cached.bytes, cached.filename) : null
 }

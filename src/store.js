@@ -5,6 +5,7 @@ export const useApp = create(persist((set, get) => ({
   page: 'overview', year: 2025, mode: 'year', month: 10, calendarDay: 28,
   metricOrder: ['income', 'expense', 'balance', 'rate'],
   ledger: null, nature: 'all', ledgerLoading: true, ledgerError: '', ledgerNotice: '',
+  serviceMode: 'connecting', serviceReady: false, service: null, serviceError: '', ledgerRevision: 'empty', legacyLedger: null,
   setNature: (nature) => set({ nature }),
   setLedger: (ledger) => set((state) => {
     const latest = ledger.transactions[0]

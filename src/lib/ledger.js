@@ -185,10 +185,3 @@ export function dailySummaries(transactions) {
   }
   return new Map([...days].map(([day, entries]) => [day, summarize(entries)]))
 }
-
-export function summaryCsv(series, year, nature = 'all', source = 'ledger') {
-  return '\ufeff月份,统计口径,收入（元）,支出（元）,结余（元）,交易笔数,数据状态\r\n' + series.map(row =>
-    [`${year}-${String(row.month).padStart(2, '0')}`, nature === 'all' ? '全部' : nature,
-      ...['income', 'expense', 'balance'].map(key => row[key] == null ? '' : row[key].toFixed(2)),
-      row.count ?? '', source === 'demo' ? '示例数据' : row.available === false ? '超出账本日期范围' : '账本内记录'].join(',')).join('\r\n')
-}
