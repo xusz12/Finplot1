@@ -30,6 +30,15 @@
   --icon-rate: #679982;
   --icon-rate-bg: #edf6f0;
   --focus-ring: color-mix(in srgb, var(--income) 55%, transparent);
+  --heat-empty: #eef1f3;
+  --heat-income-1: #d7e5fb;
+  --heat-income-2: #99bdf1;
+  --heat-income-3: #568bd2;
+  --heat-income-4: #285b9d;
+  --heat-expense-1: #fae4cc;
+  --heat-expense-2: #efbb82;
+  --heat-expense-3: #d68a43;
+  --heat-expense-4: #9b571f;
 
   --chart-1: #7398ec;
   --chart-2: #a7bcf0;

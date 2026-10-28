@@ -1,7 +1,7 @@
 {
   "name": "atelier-finance-prototypes",
   "private": true,
-  "version": "0.1.3",
+  "version": "0.1.4",
   "repository": { "type": "git", "url": "https://github.com/xusz12/Finplot1.git" },
   "engines": { "node": ">=22" },
   "type": "module",

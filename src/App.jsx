@@ -1,14 +1,14 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { version as appVersion } from '../package.json'
 import { AnimatePresence, motion } from 'motion/react'
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, XAxis, YAxis } from 'recharts'
-import { Activity, ArrowDownLeft, ArrowDownRight, ArrowRight, ArrowUpRight, CalendarDays, ChevronLeft, ChevronRight, Coffee, Grip, Home, LayoutDashboard, LineChart as LineChartIcon, Settings2, ShoppingBag, SlidersHorizontal, Sparkles, TrainFront, TrendingUp, Wallet } from 'lucide-react'
-import { Button, Card, Badge, MetricCard, PeriodDropdown, PeriodSelector, SectionHeading, SegmentedControl } from './components/ui'
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from 'recharts'
+import { Activity, ArrowDownLeft, ArrowDownRight, ArrowUpRight, CalendarDays, ChevronLeft, ChevronRight, Coffee, Grip, Home, LayoutDashboard, LineChart as LineChartIcon, Search, Settings2, ShoppingBag, SlidersHorizontal, Sparkles, TrainFront, TrendingUp, Wallet } from 'lucide-react'
+import { AnimatedText, Button, Card, Badge, MetricCard, PeriodDropdown, PeriodSelector, SectionHeading, SegmentedControl } from './components/ui'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { financialChartConfig, withChartColors } from './design-system/chart'
 import { useReducedMotionPreference } from './design-system/motion'
 import { useApp } from './store'
@@ -17,6 +17,10 @@ import { dailySummaries, NATURES, previousPeriodTotals, selectTransactions, summ
 import { connectService, syncLedger } from './lib/service'
 import Settings from './components/Settings'
 import OverviewCharts from './components/OverviewCharts'
+import { OverviewBreakdown, OverviewFilterBar, OverviewRecent, OverviewTrend } from './components/OverviewExplorer'
+import CalendarHeatmap from './components/CalendarHeatmap'
+import GlobalSearch from './components/Transactions'
+import { explorationSeries, filterTransactions } from './lib/exploration'
 
 const nav = [
   { id: 'overview', label: '财务总览', icon: LayoutDashboard },
@@ -28,9 +32,10 @@ const iconMap = { shopping: ShoppingBag, coffee: Coffee, income: ArrowDownLeft, 
 
 function Logo() { return <div className="logo-lockup"><div className="logo-symbol"><span/><span/><span/><span/></div><div className="brand-name"><strong>finplot<span>.</span></strong><small>v{appVersion}</small></div></div> }
 function Sidebar() {
-  const { page, setPage } = useApp()
+  const { page, setPage, setSearchOpen } = useApp()
   return <aside className="sidebar">
     <Logo />
+    <Button variant="ghost" className="nav-item sidebar-search" aria-label="搜索交易" title="搜索交易（⌘K / Ctrl+K）" onClick={() => setSearchOpen(true)}><Search size={17}/><span>搜索交易</span></Button>
     <nav className="side-nav" aria-label="主导航">
       {nav.map(({ id, label, icon: Icon }) => <Button variant="ghost" key={id} onClick={() => setPage(id)} aria-label={label} title={label} aria-current={page === id ? 'page' : undefined} className={`nav-item ${page === id ? 'active' : ''}`}><Icon size={17} strokeWidth={1.7}/><span>{label}</span>{page === id && <i/>}</Button>)}
     </nav>
@@ -40,8 +45,9 @@ function Sidebar() {
   </aside>
 }
 function PeriodControls({ allowMode = true }) {
-  const { year, setYear, month, setMonth, mode, setMode, ledger } = useApp()
-  const years = ledger?.years.length ? Array.from({ length: ledger.years[0] - ledger.years.at(-1) + 1 }, (_, i) => ledger.years[0] - i) : ledger ? [year] : [2025, 2024]
+  const { year, setYear, month, setMonth, mode, setMode } = useApp()
+  const { source } = useFinance()
+  const years = source.years.length ? Array.from({ length: source.years[0] - source.years.at(-1) + 1 }, (_, i) => source.years[0] - i) : [year]
   return <PeriodSelector year={year} month={month} mode={mode} years={years} allowMode={allowMode}
     onYearChange={setYear} onMonthChange={setMonth} onModeChange={setMode}/>
 }
@@ -59,6 +65,7 @@ function PageIntro({ title, allowMode = true, scope = true }) {
 }
 function SortableMetric({ id, data, previous, period }) {
   const reducedMotion = useReducedMotionPreference()
+  const { overviewFilters, toggleOverviewType } = useApp()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
     transition: reducedMotion ? null : undefined,
@@ -75,23 +82,7 @@ function SortableMetric({ id, data, previous, period }) {
   const change = comparable ? (id === 'rate' ? data.rate - previous.rate : (data[id] - previous[id]) / Math.abs(previous[id]) * 100) : null
   const favorable = id === 'expense' ? change <= 0 : change >= 0
   const changeText = change == null ? undefined : id === 'rate' ? `${change >= 0 ? '+' : ''}${change.toFixed(1)} 个百分点` : `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`
-  return <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 3 : undefined }} className={`metric-wrap ${isDragging ? 'dragging' : ''}`}><MetricCard label={item.label} value={item.value} icon={Icon} tone={item.tone} change={changeText} comparison={comparable ? previous?.label ?? period : undefined} favorable={favorable} status={data.available === false ? '账本未覆盖本期' : id === 'balance' || (id === 'rate' && data.rate == null) ? item.note : comparable ? undefined : '暂无可比的去年同期记录'} action={<Button variant="ghost" size="icon" className="drag-handle" {...attributes} {...listeners} title={`调整${item.label}卡片顺序`} aria-label={`拖动调整${item.label}卡片顺序`}><Grip size={15}/></Button>}/></div>
-}
-function TrendCard({ data }) {
-  const reducedMotion = useReducedMotionPreference()
-  return <Card className="chart-card trend-card"><div className="card-heading"><div><div className="card-title-row"><h3>收支趋势</h3><span className="tiny-tag">全年</span></div></div></div>
-    <div className="trend-chart"><ChartContainer config={financialChartConfig} className="finplot-chart"><LineChart data={data} margin={{top:0,right:8,left:-20,bottom:0}}><ChartLegend verticalAlign="top" align="right" content={<ChartLegendContent className="financial-chart-legend"/>}/><CartesianGrid stroke="var(--chart-grid)" vertical={false} strokeDasharray="3 5"/><XAxis dataKey="name" tickLine={false} axisLine={false} interval={0} tick={{fill:'var(--muted)',fontSize:11}} dy={10}/><YAxis tickLine={false} axisLine={false} tick={{fill:'var(--muted)',fontSize:11}} tickFormatter={v => v === 0 ? '0' : `${v/10000}万`} domain={[0, 'auto']}/><ChartTooltip isAnimationActive={!reducedMotion} content={<ChartTooltipContent className="financial-chart-tooltip" valueFormatter={money}/>} cursor={{stroke:'var(--border)',strokeDasharray:'3 4'}}/><Line isAnimationActive={!reducedMotion} type="monotone" dataKey="income" name="收入" stroke="var(--income)" strokeWidth={2.6} dot={false} activeDot={{r:5,stroke:'var(--card)',strokeWidth:3}}/><Line isAnimationActive={!reducedMotion} type="monotone" dataKey="expense" name="支出" stroke="var(--expense)" strokeWidth={2.3} dot={false} activeDot={{r:5,stroke:'var(--card)',strokeWidth:3}}/></LineChart></ChartContainer></div>
-  </Card>
-}
-function BreakdownCard({ data }) {
-  const { categories } = useFinance()
-  const reducedMotion = useReducedMotionPreference()
-  const [type, setType] = useState('expense')
-  const items = withChartColors(categories(type, data[type], 'group'))
-  return <Card className="chart-card breakdown-card"><div className="card-heading"><div><h3>收支构成</h3></div><SegmentedControl compact label="收支构成" value={type} onValueChange={setType} options={[{ value: 'expense', label: '支出' }, { value: 'income', label: '收入' }]}/></div>
-    <div className="donut-layout"><div className="donut-wrap"><ChartContainer config={financialChartConfig} className="finplot-chart"><PieChart><Pie isAnimationActive={!reducedMotion} data={items} dataKey="value" nameKey="name" innerRadius="70%" outerRadius="94%" paddingAngle={3} stroke="none" cornerRadius={3}>{items.map(item => <Cell key={item.name} fill={item.color}/>)}</Pie><ChartTooltip isAnimationActive={!reducedMotion} content={<ChartTooltipContent className="financial-chart-tooltip" valueFormatter={money} hideLabel/>}/></PieChart></ChartContainer><div className="donut-center"><span>总{type === 'expense' ? '支出' : '收入'}</span><strong>{money(data[type])}</strong></div></div><div className="donut-legend">{items.map(item => <div key={item.name}><span><i style={{background:item.color}}/>{item.name}</span><strong>{percent(item.share)}%</strong></div>)}</div></div>
-    <div className="breakdown-footer"><span>占比最高</span><strong>{items[0]?.name ?? '暂无记录'}</strong><span>{items.length ? money(items[0].value) : '—'}</span></div>
-  </Card>
+  return <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 3 : undefined }} className={`metric-wrap ${isDragging ? 'dragging' : ''}`}><MetricCard onSelect={id === 'income' || id === 'expense' ? () => toggleOverviewType(id) : undefined} selected={overviewFilters.type === id} label={item.label} value={item.value} icon={Icon} tone={item.tone} change={changeText} comparison={comparable ? previous?.label ?? period : undefined} favorable={favorable} status={data.available === false ? '账本未覆盖本期' : id === 'balance' || (id === 'rate' && data.rate == null) ? item.note : comparable ? undefined : '暂无可比的去年同期记录'} action={<Button variant="ghost" size="icon" className="drag-handle" {...attributes} {...listeners} title={`调整${item.label}卡片顺序`} aria-label={`拖动调整${item.label}卡片顺序`}><Grip size={15}/></Button>}/></div>
 }
 function BalanceCard({ data }) {
   const reducedMotion = useReducedMotionPreference()
@@ -99,25 +90,30 @@ function BalanceCard({ data }) {
   return <Card className="chart-card balance-card"><div className="card-heading"><div><h3>逐月结余</h3></div><div className="balance-highlight"><span>最佳月份</span><strong>{highest ? `${highest.month} 月` : '暂无记录'} <em>{highest ? money(highest.balance) : '—'}</em></strong></div></div><div className="balance-chart"><ChartContainer config={financialChartConfig} className="finplot-chart"><BarChart data={data} margin={{top:8,right:4,left:-24,bottom:0}}><CartesianGrid vertical={false} stroke="var(--chart-grid)" strokeDasharray="3 5"/><XAxis dataKey="name" tickLine={false} axisLine={false} tick={{fill:'var(--muted)',fontSize:10}} dy={8}/><YAxis tickLine={false} axisLine={false} tick={{fill:'var(--muted)',fontSize:10}} tickFormatter={v => v === 0 ? '0' : `${v/10000}万`}/><ChartTooltip isAnimationActive={!reducedMotion} content={<ChartTooltipContent className="financial-chart-tooltip" valueFormatter={money}/>} cursor={{fill:'var(--hover)'}}/><Bar isAnimationActive={!reducedMotion} dataKey="balance" name="结余" fill="var(--income)" radius={[5,5,0,0]} maxBarSize={22}>{data.map((d,i) => <Cell key={i} fill={d.balance < 0 ? 'var(--negative)' : d.month === highest?.month ? 'var(--income)' : 'var(--bar-soft)'}/>)}</Bar></BarChart></ChartContainer></div></Card>
 }
 function TransactionIcon({ type }) { const Icon = iconMap[type] || ShoppingBag; return <span className={`transaction-icon ${type}`}><Icon size={16} strokeWidth={1.7}/></span> }
-function RecentCard({ month, year, onView }) {
-  const { monthTransactions } = useFinance()
-  const { ledger, mode, nature, setPeriod, setCalendarDay } = useApp()
-  const transactions = ledger && mode === 'year' ? selectTransactions(ledger, { year, nature }) : monthTransactions(year, month)
-  return <Card className="chart-card recent-card"><div className="card-heading"><div><h3>最近交易</h3><p>{year} 年 {mode === 'month' || !ledger ? `${month} 月 · ` : '· '}{ledger ? '最近交易' : '部分示例交易'}</p></div><Button variant="ghost" className="text-link" onClick={() => { if (ledger && transactions[0]) { setPeriod(year, transactions[0].month); setCalendarDay(transactions[0].day) } onView() }}>查看日历 <ArrowRight size={14}/></Button></div><div className="transaction-list">{transactions.slice(0,4).map(t => <div className="transaction-row" key={t.id}><TransactionIcon type={t.icon}/><div><strong>{t.name}</strong><span>{t.month ?? month}月{t.day}日 · {t.category}</span></div><b className={t.amount > 0 ? 'amount-positive' : ''}>{t.amount > 0 ? '+' : '−'}{money(Math.abs(t.amount))}</b></div>)}{!transactions.length && <div className="empty-day">本期暂无交易记录</div>}</div></Card>
-}
 function Overview() {
-  const { year, mode, month, metricOrder, setMetricOrder, setPage, ledger, nature } = useApp()
-  const { totals, yearData } = useFinance()
-  const data = totals(year,mode,month), previous = ledger ? previousPeriodTotals(ledger,year,mode,month,nature) : totals(year-1,mode,month), series = yearData(year)
+  const { year, mode, month, metricOrder, setMetricOrder, nature, overviewFilters: filters, toggleOverviewType, toggleOverviewMonth, openCalendarDate } = useApp()
+  const { totals, source } = useFinance()
+  const [showAll, setShowAll] = useState(false)
+  const data = totals(year, mode, month), previous = previousPeriodTotals(source, year, mode, month, nature)
+  const allYear = useMemo(() => selectTransactions(source, { year, nature }), [source, year, nature])
+  const yearFiltered = useMemo(() => filterTransactions(allYear, filters), [allYear, filters])
+  const records = useMemo(() => yearFiltered.filter(t => mode === 'year' || t.month === month), [yearFiltered, mode, month])
+  const breakdownRecords = useMemo(() => filterTransactions(allYear.filter(t => mode === 'year' || t.month === month), { ...filters, category: null }), [allYear, mode, month, filters])
+  const series = useMemo(() => explorationSeries(source, year, yearFiltered), [source, year, yearFiltered])
+  const filtered = filters.type !== 'all' || Boolean(filters.query.trim()) || mode === 'month'
+  const expanded = filtered || showAll
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }))
   const onDragEnd = ({ active, over }) => { if (over && active.id !== over.id) setMetricOrder(arrayMove(metricOrder, metricOrder.indexOf(active.id), metricOrder.indexOf(over.id))) }
   return <><PageIntro title="财务总览"/>
     <SectionHeading title="财务概览" meta={mode === 'year' ? `${year} 年度` : `${year} 年 ${month} 月`}/>
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}><SortableContext items={metricOrder} strategy={rectSortingStrategy}><div className="metrics-grid">{metricOrder.map(id => <SortableMetric key={id} id={id} data={data} previous={previous} period="去年同期"/>)}</div></SortableContext></DndContext>
     <div className="dashboard-heading"><SectionHeading title="收支变化"/></div>
-    <OverviewCharts autoSaveId="finplot-overview-aligned-v1" trend={<TrendCard data={series}/>} balance={<BalanceCard data={series}/>}
-      breakdown={<BreakdownCard data={data}/>} recent={<RecentCard year={year} month={month} onView={() => setPage('calendar')}/>}/>
-
+    <OverviewFilterBar/>
+    <OverviewCharts autoSaveId="finplot-overview-aligned-v1" expanded={expanded}
+      trend={<OverviewTrend data={series} type={filters.type} selectedMonth={mode === 'month' ? month : null} onMonth={toggleOverviewMonth} onType={toggleOverviewType}/>}
+      balance={<BalanceCard data={series}/>} breakdown={<OverviewBreakdown transactions={breakdownRecords}/>}
+      recent={<OverviewRecent transactions={records} expanded={expanded} onExpand={() => setShowAll(true)} onCollapse={!filtered && showAll ? () => setShowAll(false) : undefined}/>}/>
+    <CalendarHeatmap source={source} year={year} transactions={yearFiltered} type={filters.type} selectedMonth={mode === 'month' ? month : null} onSelect={openCalendarDate}/>
   </>
 }
 function CategoryBlock({ type, amount, level }) {
@@ -128,20 +124,21 @@ function CategoryBlock({ type, amount, level }) {
   return <Card className="category-card"><div className="category-head"><div><div className={`category-icon ${type}`}>{isIncome ? <ArrowDownLeft size={18}/> : <ArrowUpRight size={18}/>}</div><div><h3>{isIncome ? '收入构成' : '支出构成'}</h3></div></div><strong>{money(amount,2)}</strong></div><div className="category-visual"><div className="analysis-donut"><ChartContainer config={financialChartConfig} className="finplot-chart"><PieChart><Pie isAnimationActive={!reducedMotion} data={items} dataKey="value" nameKey="name" innerRadius="70%" outerRadius="94%" paddingAngle={3} stroke="none" cornerRadius={3}>{items.map(i => <Cell key={i.name} fill={i.color}/>)}</Pie><ChartTooltip isAnimationActive={!reducedMotion} content={<ChartTooltipContent className="financial-chart-tooltip" valueFormatter={money} hideLabel/>}/></PieChart></ChartContainer><div className="donut-center"><span>{isIncome ? '收入分类' : '支出分类'}</span><strong>{items.length} 类</strong></div></div><div className="category-insight"><span>最大{isIncome ? '收入来源' : '支出项目'}</span><strong>{items[0]?.name ?? '暂无记录'}</strong><p>占总{isIncome ? '收入' : '支出'}的 {percent(items[0]?.share ?? 0)}%</p></div></div><div className="category-table-head"><span>分类</span><span>金额 / 占比</span></div>{items.map(item => <div className="category-row" key={item.name}><div><i style={{background:item.color}}/><span>{item.name}{level === 'category' && item.group && <small className="category-detail">{item.group} · {item.nature}{item.active ? '' : ' · 历史停用'}</small>}</span></div><div><strong>{money(item.value)}</strong><span>{percent(item.share)}%</span></div><div className="category-progress"><span style={{width:`${item.share*100}%`,background:item.color}}/></div></div>)}</Card>
 }
 function Analysis() {
-  const { year,mode,month,ledger } = useApp(); const { totals } = useFinance(); const data = totals(year,mode,month)
+  const { year,mode,month } = useApp(); const { totals } = useFinance(); const data = totals(year,mode,month)
   const [level, setLevel] = useState('category')
-  return <><PageIntro title="收支分析"/><SectionHeading title="分类构成" meta={mode === 'year' ? `${year} 年度` : `${year} 年 ${month} 月`} action={ledger && <SegmentedControl label="分类层级" value={level} onValueChange={setLevel} options={[{value:'category',label:'分类'},{value:'group',label:'分组'}]}/>}/><div className="analysis-grid"><CategoryBlock type="income" amount={data.income} level={level}/><CategoryBlock type="expense" amount={data.expense} level={level}/></div></>
+  return <><PageIntro title="收支分析"/><SectionHeading title="分类构成" meta={mode === 'year' ? `${year} 年度` : `${year} 年 ${month} 月`} action={<SegmentedControl label="分类层级" value={level} onValueChange={setLevel} options={[{value:'category',label:'分类'},{value:'group',label:'分组'}]}/>}/><div className="analysis-grid"><CategoryBlock type="income" amount={data.income} level={level}/><CategoryBlock type="expense" amount={data.expense} level={level}/></div></>
 }
 function CalendarPage() {
-  const { year, month, calendarDay: selected, setCalendarDay: setSelected, setPeriod, ledger } = useApp()
-  const { monthTransactions } = useFinance()
+  const { year, month, calendarDay: selected, setCalendarDay: setSelected, setPeriod, nature, openCalendarDate } = useApp()
+  const { source } = useFinance()
   const first = (new Date(year,month-1,1).getDay()+6)%7, count = new Date(year,month,0).getDate()
   const cells = Array.from({length: Math.ceil((first+count)/7)*7},(_,i) => i-first+1)
-  const transactions = monthTransactions(year, month)
+  const yearTransactions = useMemo(() => selectTransactions(source, { year, nature }), [source, year, nature])
+  const transactions = yearTransactions.filter(t => t.month === month)
   const chosen = transactions.filter(t => t.day === selected)
   const daily = dailySummaries(transactions)
-  const minYear = ledger?.years.at(-1) ?? (ledger ? year : 2024)
-  const maxYear = ledger?.years[0] ?? (ledger ? year : 2025)
+  const minYear = source.years.at(-1) ?? year
+  const maxYear = source.years[0] ?? year
   const step = (amount) => {
     const next = new Date(year, month - 1 + amount, 1)
     if (next.getFullYear() < minYear || next.getFullYear() > maxYear) return
@@ -151,7 +148,7 @@ function CalendarPage() {
     <PageIntro title="收支日历" allowMode={false}/>
 
     <div className="calendar-layout"><Card className="calendar-card">
-      <div className="calendar-heading"><div><h3>{year} 年 {month} 月</h3><p>当日收支合计</p></div><div className="calendar-arrows"><Button variant="outline" size="icon" onClick={() => step(-1)} disabled={year===minYear && month===1} aria-label="上个月"><ChevronLeft size={16}/></Button><Button variant="outline" size="icon" onClick={() => step(1)} disabled={year===maxYear && month===12} aria-label="下个月"><ChevronRight size={16}/></Button></div></div>
+      <div className="calendar-heading"><div><h3><AnimatedText>{`${year} 年 ${month} 月`}</AnimatedText></h3><p>当日收支合计</p></div><div className="calendar-arrows"><Button variant="outline" size="icon" onClick={() => step(-1)} disabled={year===minYear && month===1} aria-label="上个月"><ChevronLeft size={16}/></Button><Button variant="outline" size="icon" onClick={() => step(1)} disabled={year===maxYear && month===12} aria-label="下个月"><ChevronRight size={16}/></Button></div></div>
       <div className="calendar-week">{['一','二','三','四','五','六','日'].map(d => <span key={d}>周{d}</span>)}</div>
       <div className="calendar-grid">{cells.map((day,i) => {
         const valid = day > 0 && day <= count, summary = valid ? daily.get(day) : null
@@ -160,10 +157,12 @@ function CalendarPage() {
           <span>{valid ? day : ''}</span>{summary?.incomeCents > 0 && <small className="calendar-positive" title={`收入 ${money(summary.income)}`}>+{money(summary.income)}</small>}{summary?.expenseCents > 0 && <small title={`支出 ${money(summary.expense)}`}>−{money(summary.expense)}</small>}{summary && <i/>}
         </Button>
       })}</div>
-      <div className="calendar-caption"><span><i/> 有交易的日期</span><span>{ledger ? `${transactions.length} 笔交易 · 收入 + / 支出 −` : '部分示例交易'}</span></div>
+      <div className="calendar-caption"><span><i/> 有交易的日期</span><span>{`${transactions.length} 笔交易 · 收入 + / 支出 −`}</span></div>
     </Card><Card className="day-card"><div className="day-card-top"><div className="day-number">{String(selected).padStart(2,'0')}<span> / {String(month).padStart(2,'0')}</span></div><p>{year} 年 {month} 月 {selected} 日</p></div><div className="day-divider"/><h3>当日交易 <span>{chosen.length}</span></h3>{daily.has(selected) && <div className="day-totals"><span>收入 +{money(daily.get(selected).income)}</span><span>支出 −{money(daily.get(selected).expense)}</span></div>}
       {chosen.length ? chosen.map(t => <div className="transaction-row" key={t.id}><TransactionIcon type={t.icon}/><div><strong>{t.name}</strong><span>{t.occurredAt?.slice(11,16)} {t.category}{t.nature && ` · ${t.nature}`}</span>{t.tags?.length > 0 && <span className="transaction-tags">{t.tags.map(tag => tag.name).join(' · ')}</span>}</div><b className={t.amount>0?'amount-positive':''}>{t.amount>0?'+':'−'}{money(Math.abs(t.amount))}</b></div>) : <div className="empty-day"><CalendarDays size={23}/><strong>暂无交易记录</strong><span>当前日期及统计口径下没有交易</span></div>}
     </Card></div>
+    <CalendarHeatmap source={source} year={year} transactions={yearTransactions} selectedDate={`${year}-${String(month).padStart(2, '0')}-${String(selected).padStart(2, '0')}`}
+      selectedMonth={month} onSelect={openCalendarDate}/>
   </>
 }
 function Investments() {
@@ -184,7 +183,9 @@ function Investments() {
     <div className="dashboard-heading"><SectionHeading title="交易明细" meta={`${records.length} 笔交易`}/></div><Card className="investment-table"><Table className="investment-data-table"><TableHeader><TableRow className="table-header"><TableHead scope="col">{ledger ? '备注 / 分类' : '资产 · 示例'}</TableHead><TableHead scope="col">日期</TableHead><TableHead scope="col">方向</TableHead><TableHead scope="col">金额（元）</TableHead></TableRow></TableHeader><TableBody>{records.length ? records.map(t => <TableRow className="table-row" key={t.id}><TableCell><div className="asset-name"><span className="asset-icon"><LineChartIcon size={17}/></span><div><strong>{t.name}</strong><small>{ledger ? t.category : t.code}</small>{t.tags?.length > 0 && <small>{t.tags.map(tag => tag.name).join(' · ')}</small>}</div></div></TableCell><TableCell>{year}.{String(t.month).padStart(2,'0')}.{String(t.day).padStart(2,'0')}</TableCell><TableCell><Badge>{t.direction}</Badge></TableCell><TableCell><strong className={t.amount>0?'amount-positive':''}>{t.amount>0?'+':'−'}{money(Math.abs(t.amount))}</strong></TableCell></TableRow>) : <TableRow><TableCell colSpan={4} className="table-empty">本期没有投资记录</TableCell></TableRow>}</TableBody></Table></Card></>
 }
 export default function App() {
-  const { page, ledgerLoading, ledgerError, serviceError, serviceReady, setPage } = useApp()
+  const { page, calendarNavigation, ledgerLoading, ledgerError, serviceError, serviceReady, setPage } = useApp()
+  const mainRef = useRef(null)
+  useEffect(() => { mainRef.current?.scrollTo({ top: 0 }) }, [page, calendarNavigation])
   useEffect(() => {
     let cancelled = false
     connectService().catch(error => {
@@ -201,5 +202,5 @@ export default function App() {
   }, [])
   const reducedMotion = useReducedMotionPreference()
   const content = { overview:<Overview/>, analysis:<Analysis/>, calendar:<CalendarPage/>, investments:<Investments/>, settings:<Settings/> }
-  return <div className="app"><div className="workspace"><Sidebar/><div className="app-main"><main className="main-scroll">{serviceError && <div className="ledger-banner" role="alert">{serviceError}<Button variant="ghost" onClick={() => window.location.reload()}>重新连接</Button></div>}{ledgerError && page !== 'settings' && <div className="ledger-banner" role="alert">{ledgerError}<Button variant="ghost" onClick={() => setPage('settings')}>管理账本</Button></div>}{!serviceReady && serviceError ? null : ledgerLoading && page !== 'settings' ? <div className="ledger-loading" role="status">正在读取账本…</div> : <AnimatePresence mode="wait"><motion.div className="page-content" key={page} initial={reducedMotion ? false : {opacity:0,y:7}} animate={{opacity:1,y:0}} exit={reducedMotion ? {opacity:1} : {opacity:0,y:-5}} transition={{duration:reducedMotion ? 0 : .2,ease:'easeOut'}}>{content[page]}</motion.div></AnimatePresence>}</main></div></div></div>
+  return <div className="app"><div className="workspace"><Sidebar/><div className="app-main"><main className="main-scroll" ref={mainRef}>{serviceError && <div className="ledger-banner" role="alert">{serviceError}<Button variant="ghost" onClick={() => window.location.reload()}>重新连接</Button></div>}{ledgerError && page !== 'settings' && <div className="ledger-banner" role="alert">{ledgerError}<Button variant="ghost" onClick={() => setPage('settings')}>管理账本</Button></div>}{!serviceReady && serviceError ? null : ledgerLoading && page !== 'settings' ? <div className="ledger-loading" role="status">正在读取账本…</div> : <AnimatePresence mode="wait"><motion.div className="page-content" key={page} initial={reducedMotion ? false : {opacity:0,y:7}} animate={{opacity:1,y:0}} exit={reducedMotion ? {opacity:1} : {opacity:0,y:-5}} transition={{duration:reducedMotion ? 0 : .2,ease:'easeOut'}}>{content[page]}</motion.div></AnimatePresence>}</main></div></div><GlobalSearch/></div>
 }

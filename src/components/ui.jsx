@@ -5,17 +5,30 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { AnimatePresence, motion } from 'motion/react'
+import { useReducedMotionPreference } from '../design-system/motion'
 
 export { Button } from '@/components/ui/button'
 export { Card } from '@/components/ui/card'
 export { Badge } from '@/components/ui/badge'
+export { Input } from '@/components/ui/input'
+
+/** Business text changes only; chart and control animations stay with their owners. */
+export function AnimatedText({ children, className }) {
+  const reducedMotion = useReducedMotionPreference()
+  if (reducedMotion) return <span className={className}>{children}</span>
+  return <span className={cn('animated-text', className)}><AnimatePresence initial={false}>
+    <motion.span key={String(children)} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -4 }} transition={{ duration: .18, ease: 'easeOut' }}>{children}</motion.span>
+  </AnimatePresence></span>
+}
 
 /** Labeled single-choice menu built from shadcn/ui DropdownMenu. */
 export function PeriodDropdown({ label, value, onValueChange, options, disabled = false, className }) {
   const selected = options.find(option => String(option.value) === String(value))
   return <DropdownMenu>
     <DropdownMenuTrigger asChild><Button variant="outline" className={cn('period-dropdown', className)} disabled={disabled} aria-label={`${label}，当前 ${selected?.label ?? '未选择'}`}>
-      <span>{selected?.label ?? label}</span><ChevronDown size={14} aria-hidden="true"/>
+      <AnimatedText>{selected?.label ?? label}</AnimatedText><ChevronDown size={14} aria-hidden="true"/>
     </Button></DropdownMenuTrigger>
     <DropdownMenuContent align="end" sideOffset={7} className="period-menu" onOpenAutoFocus={event => {
       const selectedItem = event.currentTarget.querySelector('[role="menuitemradio"][data-state="checked"]')
@@ -56,15 +69,16 @@ export function SegmentedControl({ label, value, onValueChange, options, compact
 }
 
 export function SectionHeading({ title, meta, action, className }) {
-  return <div className={cn('section-heading', className)}><div><span className="section-square" aria-hidden="true"/><h2>{title}</h2>{meta && <span className="section-meta">{meta}</span>}</div>{action}</div>
+  return <div className={cn('section-heading', className)}><div><span className="section-square" aria-hidden="true"/><h2>{title}</h2>{meta && <AnimatedText className="section-meta">{meta}</AnimatedText>}</div>{action}</div>
 }
 
 /** Financial summary composed from shadcn/ui's Card. */
-export function MetricCard({ label, value, icon: Icon, tone = 'income', change, comparison, favorable = true, status, action, className }) {
-  return <Card className={cn('metric-card', `metric-${tone}`, className)}>
+export function MetricCard({ label, value, icon: Icon, tone = 'income', change, comparison, favorable = true, status, action, className, onSelect, selected = false }) {
+  return <Card className={cn('metric-card', `metric-${tone}`, onSelect && 'metric-selectable', selected && 'metric-selected', className)}>
+    {onSelect && <Button variant="ghost" className="metric-select" onClick={onSelect} aria-label={`${selected ? '取消' : '筛选'}${label}`} aria-pressed={selected}><span className="sr-only">{label}</span></Button>}
     <div className="metric-top"><div className="metric-name"><span className="metric-icon">{Icon && <Icon size={15} aria-hidden="true"/>}</span>{label}</div>{action}</div>
-    <div className="metric-value">{value}</div>
-    {(change || comparison) && <div className="metric-bottom">{change && <span className={`metric-change ${favorable ? 'positive' : 'negative'}`}>{change}</span>}{comparison && <span>较{comparison}</span>}</div>}
-    {status && <div className="metric-note">{status}</div>}
+    <div className="metric-value"><AnimatedText>{value}</AnimatedText></div>
+    {(change || comparison) && <div className="metric-bottom">{change && <AnimatedText className={`metric-change ${favorable ? 'positive' : 'negative'}`}>{change}</AnimatedText>}{comparison && <AnimatedText>较{comparison}</AnimatedText>}</div>}
+    {status && <div className="metric-note"><AnimatedText>{status}</AnimatedText></div>}
   </Card>
 }

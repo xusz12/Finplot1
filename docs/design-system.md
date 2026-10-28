@@ -1,6 +1,6 @@
 # Finplot 设计系统
 
-版本 1.3 · 面向个人财务分析及后续功能。此系统从当前 Apple 风格原型提炼而来：**安静、清晰、精确、有温度**。它是项目自己的设计语言，并非 Apple 官方设计系统。
+版本 1.4 · 面向个人财务分析及后续功能。此系统从当前 Apple 风格原型提炼而来：**安静、清晰、精确、有温度**。它是项目自己的设计语言，并非 Apple 官方设计系统。
 
 ## 入口与维护
 
@@ -61,13 +61,15 @@
 
 ## 组件与用法
 
-标准基础组件使用 shadcn/ui 官方 registry 的本地源码，位于 `src/components/ui/`，基于 Radix 并由项目控制；视觉类名为 Finplot 令牌做了适配。当前 Button、Card、Badge、Dialog、DropdownMenu、Avatar、Table、Chart、Resizable、Toggle 和 ToggleGroup 使用官方 `new-york` registry。各文件开头保留来源地址与本地适配说明，MIT 许可保存在 `src/components/ui/LICENSE.shadcn.md`。`src/components/ui.jsx` 导出基础组件并组合业务模式，不另造基础控件。不要并行引入另一套 UI 组件库。
+标准基础组件使用 shadcn/ui 官方 registry 的本地源码，位于 `src/components/ui/`，基于 Radix 并由项目控制；视觉类名为 Finplot 令牌做了适配。当前 Button、Card、Badge、Dialog、DropdownMenu、Avatar、Table、Chart、Resizable、Toggle、ToggleGroup 和 Input 使用官方 `new-york` registry。各文件开头保留来源地址与本地适配说明，MIT 许可保存在 `src/components/ui/LICENSE.shadcn.md`。`src/components/ui.jsx` 导出基础组件并组合业务模式，不另造基础控件。不要并行引入另一套 UI 组件库。
 
 选择组件时依次查找现有的本地 shadcn 组件、官方 registry 的对应组件，再组合财务业务模式。引入源码时保留来源与许可、只添加必需依赖，并使用现有令牌适配 Apple 风格；官方组件不适合特定业务需求时，可以在其基础上组合或实现业务部分。不要把业务组合误称为未经修改的官方组件。
 
 | 组件 | 用途与约束 |
 | --- | --- |
 | `Button` | `default` 为主要操作；`outline` 为次要操作；`ghost` / `subtle` 为低强调操作；`sm` 和 `icon` 为紧凑尺寸。普通按钮默认 `type="button"`，图标按钮须有 `aria-label`。`asChild` 可用于链接。 |
+| `Input` | 搜索等文字输入沿用官方源码，使用可访问名称与清空按钮；搜索框说明当前范围，支持键盘输入。 |
+| `AnimatedText` | 只处理数值、周期和业务文字变化，约 180ms 淡入淡出及 4px 位移。减少动态效果时直接替换；不包裹图表、拖拽容器或整个页面重播动画。 |
 | `Card` | 内容容器；通过组合业务类名设置内容，不把页面逻辑塞入基础组件。 |
 | `Badge` | 非交互的简短状态或版本信息。需要操作时用按钮，不要把标签伪装成按钮。 |
 | `SegmentedControl` | 受控的单选按钮组，提供 `label`、`value`、`onValueChange`、`options`；`compact` 用于卡片内部。基于 shadcn `ToggleGroup`，通过单选语义暴露选中状态；方向键移动焦点，空格键选择。 |
@@ -76,7 +78,7 @@
 | `Dialog` / `Avatar` / `Table` | 使用对应 shadcn 组件组合弹窗、头像与语义表格。 |
 | `ChartContainer` / `ChartTooltipContent` / `ChartLegendContent` | shadcn 图表容器、提示和图例（基于 Recharts）；业务组件仍需组合图形和坐标轴。提示组件本地增加 `valueFormatter` 以显示货币及零值。 |
 | `SectionHeading` | 页面区块标题，可传 `title`、`meta` 和 `action`；`meta` 仅用于提供必要上下文，不默认添加装饰性标签。 |
-| `MetricCard` | 格式化后的 `label`、`value`、`icon`、`change`、`comparison`、`status` 和 `tone`；仅提供有实际意义的可选信息，拖动等操作通过 `action` 注入。业务数据和计算留在调用方。 |
+| `MetricCard` | 格式化后的 `label`、`value`、`icon`、`change`、`comparison`、`status` 和 `tone`；仅提供有实际意义的可选信息，拖动等操作通过 `action` 注入。`onSelect` 通过原生按钮覆盖卡片主体，`selected` 提供选中外观与按下语义；拖动手柄独立位于按钮之上。业务数据和计算留在调用方。 |
 
 ```jsx
 import { Button, MetricCard, PeriodDropdown, SegmentedControl } from './components/ui'
@@ -126,6 +128,16 @@ import { FileUp, Wallet } from 'lucide-react'
 | 额外页面切换或业务动效 | Motion | 仅在现有组件没有负责该动效时使用；页面切换约 200ms，轻微位移与淡入淡出，避免弹跳和长时间循环。 |
 
 `src/design-system/motion.js` 只订阅系统的 `prefers-reduced-motion` 偏好，不实现动画。主应用和设计系统样张使用同一偏好：Recharts 图形及 Tooltip 通过自身 `isAnimationActive` 开关关闭动画；dnd-kit 关闭排序过渡，直接拖动仍可用；Motion 页面取消位移与过渡；组件 CSS 由现有媒体查询缩短过渡。偏好改变后立即生效，无需刷新。尊重减少动态效果属于组件配置，不应因此增加另一套动画实现。
+
+## 筛选探索与全年热力图
+
+- 总览的收入／支出卡片作为可反选的方向入口。指标卡始终显示当前周期和性质总额；趋势、构成与明细按类别和搜索进一步联动。月份与顶部周期同步，类型、分组、子类型与查询集中在 Zustand；账本更换清理旧筛选，不把搜索词或财务内容持久化到布局存储。
+- 类型、月份或搜索激活时，逐月结余隐藏，最近交易铺满下排。布局不改变上排调整方式；取消筛选后恢复原排列。下钻后的构成图保留同组兄弟类型和金额占比，选中子类型突出显示；返回上级按钮和筛选标签可取消选择。
+- 全年趋势保留月份上下文；图表绘图区和横轴月份均可点击，横轴还支持 Enter / Space。构成图扇区与文字图例提供同一筛选操作，图例可作为精确金额与键盘操作的替代入口。
+- 热力图复用 `CalendarHeatmap`，收入 `--heat-income-1…4` 为蓝色，支出 `--heat-expense-1…4` 为橙色，`--heat-empty` 表示无对应收支。每个日期上下分格固定表达收入／支出，不能仅靠颜色区分；两方向分别按全年单日最高金额线性分四档，并保留各自精确合计。
+- 全年网格按星期一至星期日排列，日期运算使用 UTC 避免夏令时跳日，金额不跨月混算。灰色零值与斜线快照外日期区分；布局补齐格不冒充日期。年份、活跃天数、上下方向图例和分级口径可见。
+- 热力图使用单个 Tab 入口，方向键上下移动一天、左右移动一周，Home / End 到首末可用日期。悬停和焦点均提供完整日期、笔数与双向金额，Enter / Space 查看当日；窄屏将滚动限制在网格内。月度模式仍保留全年背景，非选中月份降低强调。
+- 搜索使用当前范围搜索框和侧栏全账本 Dialog，明确范围。结果有计数、金额、空状态及分页，日期操作跳到日历。表格在 600px 以下变为逐笔布局，保留备注、标签、分类、性质和带符号金额。
 
 ## 文案与扩展检查
 

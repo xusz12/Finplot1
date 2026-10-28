@@ -1,0 +1,49 @@
+.overview-filter-bar { display:flex; align-items:center; flex-wrap:wrap; gap:10px 16px; margin-bottom:16px; }
+.overview-filter-bar>.transaction-search { width:320px; flex:0 1 320px; }
+.overview-filter-chips { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.overview-filter-chips .button-subtle { color:var(--interactive-text); background:var(--hero-bg); }
+.trend-type-legend { display:flex; gap:4px; margin-top:-6px; }
+.trend-card .card-heading { flex-wrap:wrap; align-items:center; gap:8px; }
+.trend-card .card-title-row { flex-shrink:0; }
+.trend-card .card-title-row h3,.trend-card .tiny-tag { white-space:nowrap; }
+.trend-card .trend-type-legend { margin-left:auto; }
+.trend-type-legend .ui-button { height:26px; padding:0 5px; font-size:10px; color:var(--soft-text); }
+.trend-type-legend .ui-button[aria-pressed="true"] { background:var(--hero-bg); color:var(--interactive-text); }
+.trend-type-legend .muted { opacity:.45; }
+.trend-type-legend i { width:14px; height:3px; border-radius:2px; }
+.trend-month { cursor:pointer; font-size:10px; fill:var(--soft-text); }
+.trend-month rect { fill:transparent; }
+.trend-month.selected rect { fill:var(--hero-bg); }
+.trend-month.selected text { fill:var(--interactive-text); font-weight:700; }
+.trend-month:focus-visible { outline:none; }
+.trend-month:focus-visible rect { stroke:var(--interactive-text); stroke-width:2; }
+.trend-month.unavailable { opacity:.4; cursor:default; }
+.breakdown-breadcrumb { display:flex; align-items:center; gap:8px; margin-top:8px; font-size:11px; color:var(--soft-text); }
+.breakdown-breadcrumb .ui-button { color:var(--interactive-text); height:24px; padding:0; max-width:75%; white-space:normal; text-align:left; }
+.filterable-legend.donut-legend { max-width:none; min-width:0; gap:4px; padding:4px; }
+.category-filter.ui-button { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:6px; min-height:30px; height:auto; white-space:normal; font-size:11px; font-weight:400; }
+.category-filter>span { min-width:0; flex:1; text-align:left; }
+.category-filter>span>span { white-space:normal; overflow-wrap:anywhere; display:block; }
+.category-filter i { flex-shrink:0; }
+.category-filter strong { flex-shrink:0; font-size:10px; }
+.category-filter[aria-pressed="true"] { background:var(--hero-bg); box-shadow:inset 0 0 0 1px var(--hero-border); }
+.donut-center>span { max-width:75%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--soft-text); }
+.breakdown-card .recharts-sector { cursor:pointer; }
+.category-sector:focus-visible { outline:2px solid var(--interactive-text); outline-offset:2px; }
+.recent-transaction.ui-button { display:flex; width:100%; gap:12px; padding:12px 0; height:auto; justify-content:space-between; border-bottom:1px solid var(--border); border-radius:0; white-space:normal; font-weight:400; }
+.recent-transaction:last-child { border-bottom:0; }
+.recent-transaction>span { min-width:0; text-align:left; }
+.recent-transaction strong { display:block; font-size:12px; font-weight:500; color:var(--text); overflow-wrap:anywhere; }
+.recent-transaction small { display:block; font-size:11px; margin-top:4px; color:var(--soft-text); }
+.recent-transaction b { white-space:nowrap; font-size:12px; font-weight:500; color:var(--text); }
+@media (max-width:760px) {
+  .overview-filter-bar>.transaction-search { width:100%; flex-basis:100%; }
+}
+@media (max-width:480px) {
+  .trend-month-unit { display:none; }
+  .trend-month rect { x:-8px; width:16px; }
+  .trend-type-legend { gap:0; }
+  .trend-type-legend .ui-button { padding-inline:3px; }
+  .overview-compact-charts .donut-layout { flex-wrap:wrap; gap:4px; padding-top:12px; }
+  .filterable-legend.donut-legend { flex-basis:100%; max-height:180px; }
+}

@@ -8,7 +8,7 @@ const layoutStyle = {
 }
 const atAlignment = size => Math.abs(size - OVERVIEW_ALIGNED_SIZE) < 0.000001
 
-export default function OverviewCharts({ trend, balance, breakdown, recent, autoSaveId }) {
+export default function OverviewCharts({ trend, balance, breakdown, recent, autoSaveId, expanded = false }) {
   const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 1020px)').matches)
   const [aligned, setAligned] = useState(true)
   const [dragging, setDragging] = useState(false)
@@ -43,10 +43,10 @@ export default function OverviewCharts({ trend, balance, breakdown, recent, auto
     setDragging(active)
   }, [])
 
-  return <div className="overview-charts" style={layoutStyle} data-dragging={dragging || undefined} data-aligned={aligned || undefined}>
+  return <div className="overview-charts" style={layoutStyle} data-expanded={expanded || undefined} data-dragging={dragging || undefined} data-aligned={aligned || undefined}>
     {compact ? <div className="overview-compact-charts">
       <div className="overview-chart-slot overview-trend">{trend}</div>
-      <div className="overview-chart-slot overview-balance">{balance}</div>
+      {!expanded && <div className="overview-chart-slot overview-balance">{balance}</div>}
       <div className="overview-chart-slot overview-breakdown">{breakdown}</div>
       <div className="overview-chart-slot overview-recent">{recent}</div>
     </div> : <>
@@ -59,7 +59,7 @@ export default function OverviewCharts({ trend, balance, breakdown, recent, auto
           <ResizablePanel defaultSize={100 - OVERVIEW_ALIGNED_SIZE} minSize={30}>{breakdown}</ResizablePanel>
         </ResizablePanelGroup>
       </div>
-      <div className="overview-lower-row">{balance}{recent}</div>
+      <div className="overview-lower-row">{!expanded && balance}{recent}</div>
     </>}
   </div>
 }

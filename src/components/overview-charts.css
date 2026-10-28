@@ -15,6 +15,9 @@
 .overview-balance { grid-area:balance; }
 .overview-breakdown { grid-area:breakdown; }
 .overview-recent { grid-area:recent; }
+.overview-charts[data-expanded] .overview-lower-row { grid-template-columns:minmax(0,1fr); }
+.overview-charts[data-expanded] .overview-compact-charts { grid-template-areas:'trend breakdown' 'recent recent'; }
 @media (max-width:760px) {
+  .overview-charts[data-expanded] .overview-compact-charts { grid-template-areas:'trend' 'breakdown' 'recent'; }
   .overview-compact-charts { grid-template-columns:minmax(0,1fr); grid-template-areas:'trend' 'balance' 'breakdown' 'recent'; }
 }
