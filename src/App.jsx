@@ -9,7 +9,7 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, P
 import { Activity, ArrowDownLeft, ArrowDownRight, ArrowRight, ArrowUpRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Coffee, Database, Download, Ellipsis, FileUp, Grip, Home, LayoutDashboard, LineChart as LineChartIcon, LockKeyhole, RefreshCw, Settings2, ShoppingBag, SlidersHorizontal, Sparkles, TrainFront, TrendingUp, Wallet, X } from 'lucide-react'
 import { Button, Card, Badge } from './components/ui'
 import { useApp } from './store'
-import { categories, investmentData, monthTransactions, money, themes, totals, yearData } from './data'
+import { categories, investmentData, monthTransactions, money, totals, yearData } from './data'
 
 const nav = [
   { id: 'overview', label: '财务总览', icon: LayoutDashboard },
@@ -18,13 +18,7 @@ const nav = [
   { id: 'investments', label: '投资记录', icon: TrendingUp },
 ]
 const pageLabels = { overview: '财务总览', analysis: '收支分析', calendar: '收支日历', investments: '投资记录', settings: '设置' }
-const palettes = {
-  apple: ['#7398ec', '#a7bcf0', '#c6d3f2', '#91aadf', '#dbe4f5', '#e9edf5'],
-  arc: ['#9975e8', '#c1a7ef', '#dec9f5', '#ab91d7', '#eee0f8', '#f2ecf8'],
-  claude: ['#c67e60', '#d9a48d', '#e9c8b5', '#bd9c84', '#efdcd0', '#f2eae3'],
-  github: ['#348554', '#76ad87', '#aad0b2', '#659a79', '#d2e5d6', '#e6eee8'],
-  openai: ['#208875', '#68ae9e', '#a6d0c4', '#569b8c', '#d3e8e1', '#e8f0ec'],
-}
+const chartPalette = ['#7398ec', '#a7bcf0', '#c6d3f2', '#91aadf', '#dbe4f5', '#e9edf5']
 const iconMap = { shopping: ShoppingBag, coffee: Coffee, income: ArrowDownLeft, travel: TrainFront, home: Home, spark: Sparkles }
 
 function useNarrowScreen() {
@@ -38,21 +32,9 @@ function useNarrowScreen() {
   return narrow
 }
 
-function StudioBar() {
-  const { theme, setTheme } = useApp()
-  const active = themes.find(t => t.id === theme)
-  return <div className="studio-bar">
-    <div className="studio-brand"><span className="studio-mark"><i/><i/><i/><i/></span><span>FINPLOT <b>DESIGN STUDIES</b></span></div>
-    <div className="theme-picker" aria-label="选择设计风格">
-      {themes.map(t => <button key={t.id} type="button" className={`theme-option ${theme === t.id ? 'selected' : ''}`} onClick={() => setTheme(t.id)} aria-pressed={theme === t.id}><span style={{ background: t.color }}/>{t.name}</button>)}
-    </div>
-    <div className="studio-count"><span>五种设计视角</span><strong>{active.index}</strong><em>/ 05</em></div>
-  </div>
-}
 function Logo() { return <div className="logo-lockup"><div className="logo-symbol"><span/><span/><span/><span/></div><div><strong>finplot<span>.</span></strong><small>PERSONAL FINANCE</small></div></div> }
 function Sidebar() {
-  const { page, setPage, theme } = useApp()
-  const current = themes.find(t => t.id === theme)
+  const { page, setPage } = useApp()
   return <aside className="sidebar">
     <Logo />
     <div className="sidebar-label">WORKSPACE <span>工作空间</span></div>
@@ -64,7 +46,7 @@ function Sidebar() {
     <div className="sidebar-spacer" />
     <div className="side-note"><div className="side-note-top"><Sparkles size={15}/><span>A LITTLE REMINDER</span></div><p>每一个小小的决定，<br/>都在塑造你的未来。</p><div className="side-note-line"><span>为生活，留一份从容</span><ArrowUpRight size={14}/></div></div>
     <div className="profile"><div className="avatar">林</div><div><strong>林小满</strong><span>我的个人账本</span></div><Ellipsis size={18}/></div>
-    <div className="side-style">STYLE <strong>{current.name.toUpperCase()}</strong><span>{current.index} / 05</span></div>
+    <div className="side-footer">PERSONAL FINANCE<span>v1.0</span></div>
   </aside>
 }
 function DataDialog() {
@@ -139,7 +121,7 @@ function RecentCard({ month, year, onView }) {
   return <Card className="chart-card recent-card"><div className="card-heading"><div><h3>最近的生活</h3><p>{year} 年 {month} 月 · 部分示例交易</p></div><button className="text-link" onClick={onView}>查看日历 <ArrowRight size={14}/></button></div><div className="transaction-list">{transactions.slice(0,4).map(t => <div className="transaction-row" key={t.day}><TransactionIcon type={t.icon}/><div><strong>{t.name}</strong><span>{month}月{t.day}日 · {t.category}</span></div><b className={t.amount > 0 ? 'amount-positive' : ''}>{t.amount > 0 ? '+' : '−'}{money(Math.abs(t.amount))}</b></div>)}</div></Card>
 }
 function Overview() {
-  const { year, mode, month, metricOrder, setMetricOrder, setPage, theme } = useApp()
+  const { year, mode, month, metricOrder, setMetricOrder, setPage } = useApp()
   const data = totals(year,mode,month), previous = totals(year-1,mode,month), series = yearData(year)
   const narrow = useNarrowScreen()
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }))
@@ -148,7 +130,7 @@ function Overview() {
     <SectionHeading title="你的财务概览" meta={mode === 'year' ? `${year} 年度` : `${year} 年 ${month} 月`} action={<span className="section-hint"><Grip size={14}/> 拖动卡片调整顺序</span>}/>
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}><SortableContext items={metricOrder} strategy={rectSortingStrategy}><div className="metrics-grid">{metricOrder.map(id => <SortableMetric key={id} id={id} data={data} previous={previous} period="去年同期"/>)}</div></SortableContext></DndContext>
     <div className="dashboard-heading"><SectionHeading title="看见变化" meta="THE BIG PICTURE" action={<span className="section-hint resize-hint">拖动中间分隔线调整宽度</span>}/></div>
-    {narrow ? <div className="mobile-charts"><TrendCard data={series}/><BreakdownCard data={data} palette={palettes[theme]}/></div> : <div className="desktop-charts"><PanelGroup direction="horizontal" autoSaveId="finplot-panels"><Panel defaultSize={65} minSize={48}><TrendCard data={series}/></Panel><PanelResizeHandle className="resize-handle"><span/></PanelResizeHandle><Panel defaultSize={35} minSize={30}><BreakdownCard data={data} palette={palettes[theme]}/></Panel></PanelGroup></div>}
+    {narrow ? <div className="mobile-charts"><TrendCard data={series}/><BreakdownCard data={data} palette={chartPalette}/></div> : <div className="desktop-charts"><PanelGroup direction="horizontal" autoSaveId="finplot-panels"><Panel defaultSize={65} minSize={48}><TrendCard data={series}/></Panel><PanelResizeHandle className="resize-handle"><span/></PanelResizeHandle><Panel defaultSize={35} minSize={30}><BreakdownCard data={data} palette={chartPalette}/></Panel></PanelGroup></div>}
     <div className="lower-grid"><BalanceCard data={series}/><RecentCard year={year} month={month} onView={() => setPage('calendar')}/></div>
     <div className="page-end"><span>FINPLOT / A CLEARER PICTURE OF YOUR MONEY</span><span>用心生活，也用心记录。 ✳</span></div>
   </>
@@ -159,8 +141,8 @@ function CategoryBlock({ type, amount, palette }) {
   return <Card className="category-card"><div className="category-head"><div><div className={`category-icon ${type}`}>{isIncome ? <ArrowDownLeft size={18}/> : <ArrowUpRight size={18}/>}</div><div><span>{isIncome ? 'MONEY IN' : 'MONEY OUT'}</span><h3>{isIncome ? '收入构成' : '支出构成'}</h3></div></div><strong>{money(amount,2)}</strong></div><div className="category-visual"><div className="analysis-donut"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={items} dataKey="value" innerRadius="70%" outerRadius="94%" paddingAngle={3} stroke="none" cornerRadius={3}>{items.map(i => <Cell key={i.name} fill={i.color}/>)}</Pie><Tooltip formatter={v => money(v)}/></PieChart></ResponsiveContainer><div className="donut-center"><span>{isIncome ? '收入分类' : '支出分类'}</span><strong>{items.length} 类</strong></div></div><div className="category-insight"><span>最大{isIncome ? '收入来源' : '支出项目'}</span><strong>{items[0].name}</strong><p>占总{isIncome ? '收入' : '支出'}的 {Math.round(items[0].share*100)}%</p></div></div><div className="category-table-head"><span>分类</span><span>金额 / 占比</span></div>{items.map(item => <div className="category-row" key={item.name}><div><i style={{background:item.color}}/><span>{item.name}</span></div><div><strong>{money(item.value)}</strong><span>{Math.round(item.share*100)}%</span></div><div className="category-progress"><span style={{width:`${item.share*100}%`,background:item.color}}/></div></div>)}</Card>
 }
 function Analysis() {
-  const { year,mode,month,theme } = useApp(); const data = totals(year,mode,month)
-  return <><PageIntro eyebrow="02 / ANALYSIS" title="收支分析" subtitle="把数字拆开来看，生活的偏好也渐渐清晰。" exportButton/><SectionHeading title="每一笔的去向" meta={mode === 'year' ? `${year} 年度` : `${year} 年 ${month} 月`}/><div className="analysis-grid"><CategoryBlock type="income" amount={data.income} palette={palettes[theme]}/><CategoryBlock type="expense" amount={data.expense} palette={palettes[theme]}/></div><div className="insight-banner"><span className="insight-spark"><Sparkles size={19}/></span><div><strong>一点值得留意的事</strong><p>本期你留下了收入的 {data.rate.toFixed(1)}%。了解自己的节奏，比单纯减少支出更重要。</p></div><span className="insight-en">A LITTLE<br/>PERSPECTIVE ↗</span></div><div className="page-end"><span>FINPLOT / YOUR MONEY, WITH MEANING</span><span>找到属于自己的平衡。</span></div></>
+  const { year,mode,month } = useApp(); const data = totals(year,mode,month)
+  return <><PageIntro eyebrow="02 / ANALYSIS" title="收支分析" subtitle="把数字拆开来看，生活的偏好也渐渐清晰。" exportButton/><SectionHeading title="每一笔的去向" meta={mode === 'year' ? `${year} 年度` : `${year} 年 ${month} 月`}/><div className="analysis-grid"><CategoryBlock type="income" amount={data.income} palette={chartPalette}/><CategoryBlock type="expense" amount={data.expense} palette={chartPalette}/></div><div className="insight-banner"><span className="insight-spark"><Sparkles size={19}/></span><div><strong>一点值得留意的事</strong><p>本期你留下了收入的 {data.rate.toFixed(1)}%。了解自己的节奏，比单纯减少支出更重要。</p></div><span className="insight-en">A LITTLE<br/>PERSPECTIVE ↗</span></div><div className="page-end"><span>FINPLOT / YOUR MONEY, WITH MEANING</span><span>找到属于自己的平衡。</span></div></>
 }
 function CalendarPage() {
   const { year, month, setMonth, setYear } = useApp(); const [selected, setSelected] = useState(28)
@@ -182,10 +164,10 @@ function Investments() {
 }
 function Settings() {
   const fileRef = useRef(null); const [file,setFile]=useState(''); const [checked,setChecked]=useState(false)
-  return <><PageIntro eyebrow="05 / SETTINGS" title="设置" subtitle="让你的账本，以自己喜欢的方式运转。" controls={false}/><SectionHeading title="账本与应用" meta="PREFERENCES"/><div className="settings-layout"><Card className="settings-card"><div className="settings-title"><span><Database size={19}/></span><div><h3>账本接入</h3><p>连接你的 SQLite 账本</p></div></div><div className="settings-body"><div className="settings-row"><div><strong>SQLite 数据库</strong><p>{file ? `已选择 ${file}，这是演示接入流程。` : '选择本地 .sqlite、.sqlite3 或 .db 文件。'}</p></div><input ref={fileRef} type="file" accept=".sqlite,.sqlite3,.db" hidden onChange={e=>setFile(e.target.files?.[0]?.name||'')}/><Button variant="outline" onClick={()=>fileRef.current?.click()}><FileUp size={15}/>{file?'重新选择':'选择文件'}</Button></div><div className="settings-info"><LockKeyhole size={15}/><span>原型仅展示文件选择流程，不读取或上传文件；页面仍使用示例数据。</span></div></div></Card><Card className="settings-card"><div className="settings-title"><span><RefreshCw size={19}/></span><div><h3>版本更新</h3><p>保持应用的良好状态</p></div></div><div className="settings-body"><div className="settings-row"><div><strong>Finplot 原型 <Badge>v1.0.0</Badge></strong><p>{checked ? '当前为原型演示版本。' : '体验五种设计语言下的财务视角。'}</p></div><Button variant="outline" onClick={()=>setChecked(true)}>{checked?<Check size={15}/>:<RefreshCw size={15}/>} {checked?'已查看':'检查更新'}</Button></div></div></Card><div className="settings-aside"><Sparkles size={19}/><h3>财务，<br/>可以更从容。</h3><p>好的工具不只是记录数字，<br/>也帮你看见数字背后的生活。</p><span>MADE FOR THE WAY YOU LIVE ↗</span></div></div><div className="page-end"><span>FINPLOT / MADE WITH INTENTION</span><span>感谢你来到这里。</span></div></>
+  return <><PageIntro eyebrow="05 / SETTINGS" title="设置" subtitle="让你的账本，以自己喜欢的方式运转。" controls={false}/><SectionHeading title="账本与应用" meta="PREFERENCES"/><div className="settings-layout"><Card className="settings-card"><div className="settings-title"><span><Database size={19}/></span><div><h3>账本接入</h3><p>连接你的 SQLite 账本</p></div></div><div className="settings-body"><div className="settings-row"><div><strong>SQLite 数据库</strong><p>{file ? `已选择 ${file}，这是演示接入流程。` : '选择本地 .sqlite、.sqlite3 或 .db 文件。'}</p></div><input ref={fileRef} type="file" accept=".sqlite,.sqlite3,.db" hidden onChange={e=>setFile(e.target.files?.[0]?.name||'')}/><Button variant="outline" onClick={()=>fileRef.current?.click()}><FileUp size={15}/>{file?'重新选择':'选择文件'}</Button></div><div className="settings-info"><LockKeyhole size={15}/><span>原型仅展示文件选择流程，不读取或上传文件；页面仍使用示例数据。</span></div></div></Card><Card className="settings-card"><div className="settings-title"><span><RefreshCw size={19}/></span><div><h3>版本更新</h3><p>保持应用的良好状态</p></div></div><div className="settings-body"><div className="settings-row"><div><strong>Finplot 原型 <Badge>v1.0.0</Badge></strong><p>{checked ? '当前为原型演示版本。' : '看见生活的财务全景。'}</p></div><Button variant="outline" onClick={()=>setChecked(true)}>{checked?<Check size={15}/>:<RefreshCw size={15}/>} {checked?'已查看':'检查更新'}</Button></div></div></Card><div className="settings-aside"><Sparkles size={19}/><h3>财务，<br/>可以更从容。</h3><p>好的工具不只是记录数字，<br/>也帮你看见数字背后的生活。</p><span>MADE FOR THE WAY YOU LIVE ↗</span></div></div><div className="page-end"><span>FINPLOT / MADE WITH INTENTION</span><span>感谢你来到这里。</span></div></>
 }
 export default function App() {
-  const { theme, page } = useApp()
+  const { page } = useApp()
   const content = { overview:<Overview/>, analysis:<Analysis/>, calendar:<CalendarPage/>, investments:<Investments/>, settings:<Settings/> }
-  return <div className={`app theme-${theme}`}><StudioBar/><div className="workspace"><Sidebar/><div className="app-main"><Header/><main className="main-scroll"><AnimatePresence mode="wait"><motion.div className="page-content" key={`${page}-${theme}`} initial={{opacity:0,y:7}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-5}} transition={{duration:.2,ease:'easeOut'}}>{content[page]}</motion.div></AnimatePresence></main></div></div></div>
+  return <div className="app"><div className="workspace"><Sidebar/><div className="app-main"><Header/><main className="main-scroll"><AnimatePresence mode="wait"><motion.div className="page-content" key={page} initial={{opacity:0,y:7}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-5}} transition={{duration:.2,ease:'easeOut'}}>{content[page]}</motion.div></AnimatePresence></main></div></div></div>
 }

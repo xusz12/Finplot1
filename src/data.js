@@ -1,11 +1,3 @@
-export const themes = [
-  { id: 'apple', name: 'Apple', label: '纯粹 · 精致', index: '01', color: '#4b80e9' },
-  { id: 'arc', name: 'Arc', label: '灵动 · 实验', index: '02', color: '#8c6edb' },
-  { id: 'claude', name: 'Claude', label: '温暖 · 人文', index: '03', color: '#c77b5c' },
-  { id: 'github', name: 'GitHub', label: '清晰 · 秩序', index: '04', color: '#25864d' },
-  { id: 'openai', name: 'OpenAI', label: '克制 · 专注', index: '05', color: '#167768' },
-]
-
 const years = {
   2023: { income: [19000,20000,21500,22000,22500,24000,23000,25000,24000,24500,25000,28500], expense: [12900,13700,14000,15000,14700,15900,15400,17000,14100,15400,15500,18500] },
   2025: { income: [23000,23500,25500,26000,26200,30000,27500,30400,27800,28600,29200,35600], expense: [14800,15900,15200,17400,16200,18100,16800,19000,15400,17800,16900,20300] },
